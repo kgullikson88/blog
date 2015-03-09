@@ -3,7 +3,7 @@
 from __future__ import unicode_literals
 
 AUTHOR = 'Kevin Gullikson'
-SITENAME = 'A journey through data in astronomy and elsewhere'
+SITENAME = 'Exploring data in astronomy and elsewhere'
 SITEURL = ''
 
 PATH = 'content'
