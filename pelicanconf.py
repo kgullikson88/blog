@@ -20,12 +20,13 @@ AUTHOR_FEED_ATOM = None
 AUTHOR_FEED_RSS = None
 
 # Blogroll
-LINKS = (('My Github', 'http://github.com/kgullikson88'),)
+LINKS = (('My Academic Website', 'http://www.as.utexas.edu/~kgulliks/index.html'),)
 
 # Social widget
 SOCIAL = (('Facebook', 'https://www.facebook.com/kevin.gullikson'),
           ('Google+', 'https://plus.google.com/u/0/+KevinGullikson'),
-          ('LinkedIn', 'www.linkedin.com/in/KevinGullikson'))
+          ('LinkedIn', 'www.linkedin.com/in/KevinGullikson'),
+          ('Github', 'http://github.com/kgullikson88'),)
 
 DEFAULT_PAGINATION = 10
 
