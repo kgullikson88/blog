@@ -3,12 +3,12 @@
 from __future__ import unicode_literals
 
 AUTHOR = 'Kevin Gullikson'
-SITENAME = 'Exploring data in astronomy and elsewhere'
+SITENAME = 'Adventures of the Datastronomer'
 SITEURL = ''
 
 PATH = 'content'
 
-TIMEZONE = 'Europe/Paris'
+TIMEZONE = 'America/Chicago'
 
 DEFAULT_LANG = 'en'
 
@@ -20,14 +20,12 @@ AUTHOR_FEED_ATOM = None
 AUTHOR_FEED_RSS = None
 
 # Blogroll
-LINKS = (('Pelican', 'http://getpelican.com/'),
-         ('Python.org', 'http://python.org/'),
-         ('Jinja2', 'http://jinja.pocoo.org/'),
-         ('You can modify those links in your config file', '#'),)
+LINKS = (('My Github', 'http://github.com/kgullikson88'),)
 
 # Social widget
-SOCIAL = (('You can add links in your config file', '#'),
-          ('Another social link', '#'),)
+SOCIAL = (('Facebook', 'https://www.facebook.com/kevin.gullikson'),
+          ('Google+', 'https://plus.google.com/u/0/+KevinGullikson'),
+          ('LinkedIn', 'www.linkedin.com/in/KevinGullikson'))
 
 DEFAULT_PAGINATION = 10
 
