@@ -5,4 +5,4 @@ slug: first-post
 
 Hello World!
 -----------------------
-First post for my [blog](http://kgullikson88.github.io). Let's do this!
+First post for my [blog](http://kgullikson88.github.io/blog). Let's do this!
