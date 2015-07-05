@@ -7,7 +7,7 @@ Slug: climate-change
 Author: Kevin Gullikson
 
 ## Or: Is there really a pause in global warming?
-A common criticism made by climate change skeptics is that there has not been any warming in the several years. They claim that since the CO$_2$ abundance is still increasing, the lack of increasing temperatures proves that CO$_2$ *cannot* be driving the temperature change.
+A common criticism made by climate change skeptics is that there has not been any warming in the last several years. They claim that since the CO$_2$ abundance is still increasing, the lack of increasing temperatures proves that CO$_2$ *cannot* be driving the temperature change.
 
 Let's take a look at the data. For this project, I will be using the [Berkeley Earth compilation](http://berkeleyearth.org/data/) of global average surface temperatures and ocean temperatures. The data go back to 1880 and, unlike other compilations I have found, include an uncertainty in the temperature anomaly as well as just the value. The data from the [Goddard Institute for Space Studies](http://data.giss.nasa.gov/gistemp/), which is more commonly used but does not include uncertainties, is almost identical to the values I use.
 
@@ -40,7 +40,7 @@ The rest of this post will focus on leveraging some heavy statistical machinery 
 ** "Does the data support the hypothesis that temperatures have stopped increasing in the last 1-2 decades?" **
 
 #Bayesian Model Selection
-The statistical machinery I will use here is bayesian model selection. It centers on Bayes' equation:
+If you don't want to get into too much math, just skip to "The Models" now. If you want some details on bayesian model selection, then read on. The statistical machinery I will use here is bayesian model selection. It centers on Bayes' equation:
 
 $$
 P(\theta|D, M) = \frac{P(D|\theta, M) P(\theta|M)}{P(D|M)}
@@ -55,7 +55,7 @@ In words, Bayes' equation says that the probability of a set of model parameters
   <li> Bayesian Evidence: <span class="math">\(P(D|M)\)</span> </li>
 </ul>
  
-The likelihood function is a measure of how far away the value predicted by the model is from the data. Model parameters that predict the value far from what it actually is have low probability. A typical function for this is the gaussian likelihood that compares each data point ($x_i, y_i, \sigma_i$) to what the model predicts:
+The likelihood function is a measure of how far away the value predicted by the model is from the data. Model parameters that predict the value far from what it actually is have low probability while parameters that predict values close to the data have high probability. A typical function for this is the gaussian likelihood that compares each data point ($x_i, y_i, \sigma_i$) to what the model predicts:
 
 $$
 P(D|\theta, M) = \prod_i \frac{1}{\sqrt{2\pi\sigma_i^2}} e^{-0.5(y_i - M(x_i, \theta))^2 / \sigma_i^2}
@@ -71,7 +71,7 @@ $$
 
 Basically, the bayesian evidence is a weighted sum of the likelihood function over the entire possible parameter space. The nice thing is that it mathematically implements [Occam's razor](https://en.wikipedia.org/wiki/Occam's_razor) since models with more parameters but equal predictive capability will have a larger parameter space, which means a lot more space with low likelihood, and so the evidence decreases. However, adding parameters that significantly improve the predictive capability of the model will *increase* the evidence even though the parameter space increases. This is exactly why bayesian evidence is used to determine which model best describes the data, and is why I will be using it here. 
 
-#The models
+#The Models
 I will try out four different models for the data and compare the bayesian evidence for each.
 
  - A constant model with one parameter ($\Delta T_0$).
@@ -79,7 +79,7 @@ I will try out four different models for the data and compare the bayesian evide
  - An exponential growth model given by $\Delta T = \Delta T_0 + e^{f(t-t_0)}$ with parameters $\theta_{M3} = \Delta T_0, f, t_0$
  - An exponential growth model with a stopping time at which $\Delta T$ becomes constant. It has parameters $\theta_{M4} = \Delta T_0, f, t_0, t_{stop}$
  
-The evidence calculation is very computationally difficult for most algorithms, but I will be using the [MultiNest algorithm](http://arxiv.org/abs/0809.3437) that is designed specifically for bayesian evidence calculation. There is a nice Python wrapper to the algorithm [here](https://github.com/JohannesBuchner/PyMultiNest). For any interested parties, I have a [wrapper](https://github.com/kgullikson88/General/blob/a0803368154b18e4e051e35b77b1a2eb41e51dc1/Fitters.py#L947) to *that* that makes this whole model comparison thing easier and a bit more "pythonic". I did all of this analysis in a ipython notebook [here](https://github.com/kgullikson88/Ipython_Notebooks/blob/master/Climate_Data_multinest.ipynb).
+The evidence calculation is very computationally difficult for most algorithms, but I will be using the [MultiNest algorithm](http://arxiv.org/abs/0809.3437) that is designed specifically for bayesian evidence calculation. There is a nice Python wrapper to the algorithm [here](https://github.com/JohannesBuchner/PyMultiNest). For any interested parties, I have a [wrapper](https://github.com/kgullikson88/General/blob/a0803368154b18e4e051e35b77b1a2eb41e51dc1/Fitters.py#L947) to *that* that makes this whole model comparison thing easier and a bit more "pythonic". I did all of this analysis in a ipython notebook [here](https://github.com/kgullikson88/Ipython_Notebooks/blob/master/Climate_Data_multinest.ipynb), and you can see how I use my wrapper there.
 
 # The Fits and Bayesian Evidence
 Here is a visual representation of the four fits. The data is in blue, and I have removed the uncertainties for clarity. Check back above to remind yourself how big the errors are though! The red lines are 100 samples from the posterior probability function. Remember, the posterior probability function gives us what parameters are most compatible with the data so the spread in red lines tells you something about the range of reasonable parameters.
@@ -122,7 +122,7 @@ Here is a visual representation of the four fits. The data is in blue, and I hav
 </table>
 
 
-The constant model is very obviously bad and was chosen to be so. The polynomial fit reproduces the data much better, but so does the exponential fit that has 3 fewer parameters. 
+The constant model is very obviously bad and was chosen to be so to demonstrate how bayesian evidence works. The polynomial fit reproduces the data much better, but so does the exponential fit that has 3 fewer parameters. 
 
 Let's take a look at the bayesian evidence for each of the three first models. Since the multinest algorithm numerically calculates the evidence, it has some uncertainty that I also quote. Also note that the values quoted here are actually *$log(evidence)$* rather than just the evidence (that makes it computationally more stable).
 
