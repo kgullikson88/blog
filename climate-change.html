@@ -54,7 +54,7 @@
 </header>
 
   <div class="entry-content"><h2>Or: Is there really a pause in global warming?</h2>
-<p>A common criticism made by climate change skeptics is that there has not been any warming in the several years. They claim that since the CO<span class="math">\(_2\)</span> abundance is still increasing, the lack of increasing temperatures proves that CO<span class="math">\(_2\)</span> <em>cannot</em> be driving the temperature change.</p>
+<p>A common criticism made by climate change skeptics is that there has not been any warming in the last several years. They claim that since the CO<span class="math">\(_2\)</span> abundance is still increasing, the lack of increasing temperatures proves that CO<span class="math">\(_2\)</span> <em>cannot</em> be driving the temperature change.</p>
 <p>Let's take a look at the data. For this project, I will be using the <a href="http://berkeleyearth.org/data/">Berkeley Earth compilation</a> of global average surface temperatures and ocean temperatures. The data go back to 1880 and, unlike other compilations I have found, include an uncertainty in the temperature anomaly as well as just the value. The data from the <a href="http://data.giss.nasa.gov/gistemp/">Goddard Institute for Space Studies</a>, which is more commonly used but does not include uncertainties, is almost identical to the values I use.</p>
 <p>Here is the last 15 years.</p>
 <style type="text/css">
@@ -81,7 +81,7 @@
 <p>The rest of this post will focus on leveraging some heavy statistical machinery on the last point to answer the following question:</p>
 <p><strong> "Does the data support the hypothesis that temperatures have stopped increasing in the last 1-2 decades?" </strong></p>
 <h1>Bayesian Model Selection</h1>
-<p>The statistical machinery I will use here is bayesian model selection. It centers on Bayes' equation:</p>
+<p>If you don't want to get into too much math, just skip to "The Models" now. If you want some details on bayesian model selection, then read on. The statistical machinery I will use here is bayesian model selection. It centers on Bayes' equation:</p>
 <div class="math">$$
 P(\theta|D, M) = \frac{P(D|\theta, M) P(\theta|M)}{P(D|M)}
 $$</div>
@@ -93,7 +93,7 @@ $$</div>
   <li> Bayesian Evidence: <span class="math">\(P(D|M)\)</span> </li>
 </ul>
 
-<p>The likelihood function is a measure of how far away the value predicted by the model is from the data. Model parameters that predict the value far from what it actually is have low probability. A typical function for this is the gaussian likelihood that compares each data point (<span class="math">\(x_i, y_i, \sigma_i\)</span>) to what the model predicts:</p>
+<p>The likelihood function is a measure of how far away the value predicted by the model is from the data. Model parameters that predict the value far from what it actually is have low probability while parameters that predict values close to the data have high probability. A typical function for this is the gaussian likelihood that compares each data point (<span class="math">\(x_i, y_i, \sigma_i\)</span>) to what the model predicts:</p>
 <div class="math">$$
 P(D|\theta, M) = \prod_i \frac{1}{\sqrt{2\pi\sigma_i^2}} e^{-0.5(y_i - M(x_i, \theta))^2 / \sigma_i^2}
 $$</div>
@@ -103,7 +103,7 @@ $$</div>
 P(D|M) = \int P(D|\theta, M)P(\theta|M)d^N\theta
 $$</div>
 <p>Basically, the bayesian evidence is a weighted sum of the likelihood function over the entire possible parameter space. The nice thing is that it mathematically implements <a href="https://en.wikipedia.org/wiki/Occam's_razor">Occam's razor</a> since models with more parameters but equal predictive capability will have a larger parameter space, which means a lot more space with low likelihood, and so the evidence decreases. However, adding parameters that significantly improve the predictive capability of the model will <em>increase</em> the evidence even though the parameter space increases. This is exactly why bayesian evidence is used to determine which model best describes the data, and is why I will be using it here. </p>
-<h1>The models</h1>
+<h1>The Models</h1>
 <p>I will try out four different models for the data and compare the bayesian evidence for each.</p>
 <ul>
 <li>A constant model with one parameter (<span class="math">\(\Delta T_0\)</span>).</li>
@@ -111,7 +111,7 @@ $$</div>
 <li>An exponential growth model given by <span class="math">\(\Delta T = \Delta T_0 + e^{f(t-t_0)}\)</span> with parameters <span class="math">\(\theta_{M3} = \Delta T_0, f, t_0\)</span></li>
 <li>An exponential growth model with a stopping time at which <span class="math">\(\Delta T\)</span> becomes constant. It has parameters <span class="math">\(\theta_{M4} = \Delta T_0, f, t_0, t_{stop}\)</span></li>
 </ul>
-<p>The evidence calculation is very computationally difficult for most algorithms, but I will be using the <a href="http://arxiv.org/abs/0809.3437">MultiNest algorithm</a> that is designed specifically for bayesian evidence calculation. There is a nice Python wrapper to the algorithm <a href="https://github.com/JohannesBuchner/PyMultiNest">here</a>. For any interested parties, I have a <a href="https://github.com/kgullikson88/General/blob/a0803368154b18e4e051e35b77b1a2eb41e51dc1/Fitters.py#L947">wrapper</a> to <em>that</em> that makes this whole model comparison thing easier and a bit more "pythonic". I did all of this analysis in a ipython notebook <a href="https://github.com/kgullikson88/Ipython_Notebooks/blob/master/Climate_Data_multinest.ipynb">here</a>.</p>
+<p>The evidence calculation is very computationally difficult for most algorithms, but I will be using the <a href="http://arxiv.org/abs/0809.3437">MultiNest algorithm</a> that is designed specifically for bayesian evidence calculation. There is a nice Python wrapper to the algorithm <a href="https://github.com/JohannesBuchner/PyMultiNest">here</a>. For any interested parties, I have a <a href="https://github.com/kgullikson88/General/blob/a0803368154b18e4e051e35b77b1a2eb41e51dc1/Fitters.py#L947">wrapper</a> to <em>that</em> that makes this whole model comparison thing easier and a bit more "pythonic". I did all of this analysis in a ipython notebook <a href="https://github.com/kgullikson88/Ipython_Notebooks/blob/master/Climate_Data_multinest.ipynb">here</a>, and you can see how I use my wrapper there.</p>
 <h1>The Fits and Bayesian Evidence</h1>
 <p>Here is a visual representation of the four fits. The data is in blue, and I have removed the uncertainties for clarity. Check back above to remind yourself how big the errors are though! The red lines are 100 samples from the posterior probability function. Remember, the posterior probability function gives us what parameters are most compatible with the data so the spread in red lines tells you something about the range of reasonable parameters.</p>
 <style type="text/css">
@@ -150,7 +150,7 @@ $$</div>
   </tr>
 </table>
 
-<p>The constant model is very obviously bad and was chosen to be so. The polynomial fit reproduces the data much better, but so does the exponential fit that has 3 fewer parameters. </p>
+<p>The constant model is very obviously bad and was chosen to be so to demonstrate how bayesian evidence works. The polynomial fit reproduces the data much better, but so does the exponential fit that has 3 fewer parameters. </p>
 <p>Let's take a look at the bayesian evidence for each of the three first models. Since the multinest algorithm numerically calculates the evidence, it has some uncertainty that I also quote. Also note that the values quoted here are actually <em><span class="math">\(log(evidence)\)</span></em> rather than just the evidence (that makes it computationally more stable).</p>
 <ul>
 <li>Constant model evidence: <span class="math">\(34.11 \pm 0.02\)</span></li>
