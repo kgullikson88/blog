@@ -13,11 +13,21 @@ Let's take a look at the data. For this project, I will be using the [Berkeley E
 
 Here is the last 15 years.
 
-<img src=Figures/Anomaly_Recent.png>
+<style type="text/css">
+  .centeredImage
+    {
+    text-align:center;
+    margin-top:0px;
+    margin-bottom:0px;
+    padding:0px;
+    }
+</style>
+
+<p class="centeredImage"><img src=Figures/Anomaly_Recent.png></p>
 
 Indeed, there is really not much warming, and it certainly appears to be constant. But only looking at the last 15 years is silly! Here is the data since 1880, which is as far back as the temperature estimates go. In the full data, I am showing the uncertainty in the temperature anomaly in each year with a colored band. Basically, any temperature anomaly that falls within the band is consistent with the measurements we have.
 
-<img src=Figures/Anomaly_Full.png>
+<p class="centeredImage"><img src=Figures/Anomaly_Full.png></p>
 
 This data shows a few things really clearly.
 
@@ -32,24 +42,32 @@ The rest of this post will focus on leveraging some heavy statistical machinery 
 #Bayesian Model Selection
 The statistical machinery I will use here is bayesian model selection. It centers on Bayes' equation:
 
-$P(\theta|D, M) = \frac{P(D|\theta, M) P(\theta|M)}{P(D|M)}$
+$$
+P(\theta|D, M) = \frac{P(D|\theta, M) P(\theta|M)}{P(D|M)}
+$$
 
 In words, Bayes' equation says that the probability of a set of model parameters ($\theta$), given the data we have (D) and the model we choose (M), is equal to the probability of the data given the parameters and the model, times the probability of the parameters, and divided by the probability of the data under the model. The individual terms in Bayes' equation are:
 
- - Posterior Probability Function: $P(\theta|D, M)$
- - Likelihood Function: $P(D|\theta, M)$
- - Prior Probability: $P(\theta|M)$
- - Bayesian Evidence: $P(D|M)$
+<ul>
+  <li> Posterior Probability Function: <span class="math">\(P(\theta|D, M)\)</span> </li>
+  <li> Likelihood Function: <span class="math">\(P(D|\theta, M)\)</span> </li>
+  <li> Prior Probability: <span class="math">\(P(\theta|M)\)</span> </li>
+  <li> Bayesian Evidence: <span class="math">\(P(D|M)\)</span> </li>
+</ul>
  
 The likelihood function is a measure of how far away the value predicted by the model is from the data. Model parameters that predict the value far from what it actually is have low probability. A typical function for this is the gaussian likelihood that compares each data point ($x_i, y_i, \sigma_i$) to what the model predicts:
 
-$P(D|\theta, M) = \prod_i \frac{1}{\sqrt{2\pi\sigma_i^2}} e^{-0.5*(y_i - M(x_i, \theta))^2 / \sigma_i^2}$
+$$
+P(D|\theta, M) = \prod_i \frac{1}{\sqrt{2\pi\sigma_i^2}} e^{-0.5(y_i - M(x_i, \theta))^2 / \sigma_i^2}
+$$
 
 The prior probability function uses information we already have to adjust the probability of the given model parameters. I could do whole posts about the prior function, and other people have, but for this project I will exclusively use flat, uninformative priors.
 
 In many applications where we only care about the best parameter values, the bayesian evidence is completely ignored since it is a constant for a given dataset and model, and is difficult to calculate. However, it is very important for choosing which model best describes the data so I will focus on it a bit more. Here is the evidence in its full glory:
 
-$P(D|M) = \int P(D|\theta, M)P(\theta|M)d^N\theta$
+$$
+P(D|M) = \int P(D|\theta, M)P(\theta|M)d^N\theta
+$$
 
 Basically, the bayesian evidence is a weighted sum of the likelihood function over the entire possible parameter space. The nice thing is that it mathematically implements [Occam's razor](https://en.wikipedia.org/wiki/Occam's_razor) since models with more parameters but equal predictive capability will have a larger parameter space, which means a lot more space with low likelihood, and so the evidence decreases. However, adding parameters that significantly improve the predictive capability of the model will *increase* the evidence even though the parameter space increases. This is exactly why bayesian evidence is used to determine which model best describes the data, and is why I will be using it here. 
 
@@ -61,53 +79,48 @@ I will try out four different models for the data and compare the bayesian evide
  - An exponential growth model given by $\Delta T = \Delta T_0 + e^{f(t-t_0)}$ with parameters $\theta_{M3} = \Delta T_0, f, t_0$
  - An exponential growth model with a stopping time at which $\Delta T$ becomes constant. It has parameters $\theta_{M4} = \Delta T_0, f, t_0, t_{stop}$
  
-The evidence calculation is very computationally difficult for most algorithms, but I will be using the [MultiNest algorithm](http://arxiv.org/abs/0809.3437) that is designed specifically for bayesian evidence calculation. There is a nice Python wrapper to the algorithm [here](https://github.com/JohannesBuchner/PyMultiNest). For any interested parties, I have a [wrapper](https://github.com/kgullikson88/General/blob/a0803368154b18e4e051e35b77b1a2eb41e51dc1/Fitters.py#L947) to *that* that makes this whole model comparison thing easier and a bit more "pythonic". I did all of this analysis in a ipython notebook [here](link.to.notebook).
+The evidence calculation is very computationally difficult for most algorithms, but I will be using the [MultiNest algorithm](http://arxiv.org/abs/0809.3437) that is designed specifically for bayesian evidence calculation. There is a nice Python wrapper to the algorithm [here](https://github.com/JohannesBuchner/PyMultiNest). For any interested parties, I have a [wrapper](https://github.com/kgullikson88/General/blob/a0803368154b18e4e051e35b77b1a2eb41e51dc1/Fitters.py#L947) to *that* that makes this whole model comparison thing easier and a bit more "pythonic". I did all of this analysis in a ipython notebook [here](https://github.com/kgullikson88/Ipython_Notebooks/blob/master/Climate_Data_multinest.ipynb).
 
 # The Fits and Bayesian Evidence
 Here is a visual representation of the four fits. The data is in blue, and I have removed the uncertainties for clarity. Check back above to remind yourself how big the errors are though! The red lines are 100 samples from the posterior probability function. Remember, the posterior probability function gives us what parameters are most compatible with the data so the spread in red lines tells you something about the range of reasonable parameters.
 
-<div style="float:left;"> 
-    <img src="Figures/Constant.png" /> 
-</div>
-<div style="float:right;"> 
-    <img src="Figures/Polynomial.png" /> 
-</div> 
-<div style="float:left;"> 
-    <img src="Figures/ExpFit.png" /> 
-</div>
-<div style="float:right;"> 
-    <img src="Figures/ExpFit_Stop.png" /> 
-</div> 
 
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
+<style type="text/css">
+.floated_img
+{
+    float: left;
+}
+.section {
+  width: 50%;
+  height: 50%;
+  border: solid 1px #000;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+}
+.section img {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin: auto;
+  max-height: 90%;
+  max-width: 90%;
+}
+</style>
+
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td><img src="Figures/Constant.png" width= "100%"  border="0"></td>
+    <td><img src="Figures/Polynomial.png" width= "100%"  border="0"></td>
+  </tr>
+  <tr>
+    <td><img src="Figures/ExpFit.png" width= "100%"  border="0"></td>
+    <td><img src="Figures/ExpFit_Stop.png" width= "100%"  border="0"></td>
+  </tr>
+</table>
+
 
 The constant model is very obviously bad and was chosen to be so. The polynomial fit reproduces the data much better, but so does the exponential fit that has 3 fewer parameters. 
 
@@ -152,23 +165,23 @@ The evidence for the final model is just slightly smaller than for the exponenti
   </tr>
   <tr>
     <td class="tg-031e">Polynomial</td>
-    <td class="tg-031e">$8 \times 10^{-10}$</td>
+    <td class="tg-031e"><span class="math">\(8 \times 10^{-10}\)</span></td>
     <td class="tg-031e">1</td>
     <td class="tg-031e"></td>
     <td class="tg-031e"></td>
   </tr>
   <tr>
     <td class="tg-031e">Exponential</td>
-    <td class="tg-031e">$4.5 \times 10^{-30}$</td>
-    <td class="tg-031e">$5 \times 10^{-21}$</td>
+    <td class="tg-031e"><span class="math">\(4.5 \times 10^{-30}\)</span></td>
+    <td class="tg-031e"><span class="math">\(5 \times 10^{-21}\)</span></td>
     <td class="tg-031e">1</td>
     <td class="tg-031e"></td>
   </tr>
   <tr>
     <td class="tg-031e">Exponential-Stop</td>
-    <td class="tg-031e">$10^{-29}$</td>
-    <td class="tg-031e">$10^{-20}$</td>
-    <td class="tg-031e">$2.5 \pm 0.3$</td>
+    <td class="tg-031e"><span class="math">\(10^{-29}\)</span></td>
+    <td class="tg-031e"><span class="math">\(10^{-20}\)</span></td>
+    <td class="tg-031e"><span class="math">\(2.5 \pm 0.3\)</span></td>
     <td class="tg-031e">1</td>
   </tr>
 </table></div>
@@ -179,7 +192,7 @@ Clearly, the constant and polynomial models are terrible; the data supports the 
 
 There is one final thing to look at: what year does the data suggest global warming stopped under that model? Here is a histogram of samples from the posterior probability function for that parameter:
 
-<img src="Figures/GW_Stoptime.png">
+<p class="centeredImage"><img src="Figures/GW_Stoptime.png"></p>
 
 The model prefers very recent years, which means most of the predicted temperature anomalies are identical to the simple exponential model. In fact, many of the samples have the warming trend stopping *in the future*, where **all** of the model-predicted temperatures are the same as in the simpler model. If the warming trend had truly stopped, this model would have been able to pick when the trend stopped to within a few years. The fact that the posterior probability function is roughly flat for the last decade, coupled with the fact that the bayesian evidence does not favor the stopping model, tells me that it is a poor model for the data. 
 
