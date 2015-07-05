@@ -12,6 +12,15 @@ TIMEZONE = 'America/Chicago'
 
 DEFAULT_LANG = 'en'
 
+STATIC_PATHS = ['Images', 'Figures', 'Downloads']
+
+# Theme and plugins
+THEME = 'pelican-octopress-theme/'
+PLUGIN_PATH = 'pelican-plugins'
+PLUGINS = ['summary', 'liquid_tags.img', 'liquid_tags.video',
+           'liquid_tags.include_code', 'liquid_tags.notebook',
+           'liquid_tags.literal', 'render_math']
+
 # Feed generation is usually not desired when developing
 FEED_ALL_ATOM = None
 CATEGORY_FEED_ATOM = None
