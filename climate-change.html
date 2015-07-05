@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>On Bayesian Model Comparison and Climate Change &mdash; Adventures of the Datastronomer</title>
+  <meta name="author" content="Kevin Gullikson">
+
+
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+    <link href="http://kgullikson88.github.io/blog/favicon.png" rel="icon">
+
+  <link href="http://kgullikson88.github.io/blog/theme/css/main.css" media="screen, projection"
+        rel="stylesheet" type="text/css">
+
+  <link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic"
+        rel="stylesheet" type="text/css">
+  <link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic"
+        rel="stylesheet" type="text/css">
+</head>
+
+<body>
+  <header role="banner"><hgroup>
+  <h1><a href="http://kgullikson88.github.io/blog/">Adventures of the Datastronomer</a></h1>
+</hgroup></header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+</ul>
+
+
+
+<ul class="main-navigation">
+    <li class="active">
+    <a href="http://kgullikson88.github.io/blog/category/bayesian-methods.html">Bayesian methods</a>
+    </li>
+    <li >
+    <a href="http://kgullikson88.github.io/blog/category/misc.html">Misc</a>
+    </li>
+</ul></nav>
+  <div id="main">
+    <div id="content">
+<div>
+  <article class="hentry" role="article">
+<header>
+      <h1 class="entry-title">On Bayesian Model Comparison and Climate Change</h1>
+    <p class="meta">
+<time datetime="2015-07-06T05:00:00-05:00" pubdate>Mon 06 July 2015</time>    </p>
+</header>
+
+  <div class="entry-content"><h2>Or: Is there really a pause in global warming?</h2>
+<p>A common criticism made by climate change skeptics is that there has not been any warming in the several years. They claim that since the CO<span class="math">\(_2\)</span> abundance is still increasing, the lack of increasing temperatures proves that CO<span class="math">\(_2\)</span> <em>cannot</em> be driving the temperature change.</p>
+<p>Let's take a look at the data. For this project, I will be using the <a href="http://berkeleyearth.org/data/">Berkeley Earth compilation</a> of global average surface temperatures and ocean temperatures. The data go back to 1880 and, unlike other compilations I have found, include an uncertainty in the temperature anomaly as well as just the value. The data from the <a href="http://data.giss.nasa.gov/gistemp/">Goddard Institute for Space Studies</a>, which is more commonly used but does not include uncertainties, is almost identical to the values I use.</p>
+<p>Here is the last 15 years.</p>
+<style type="text/css">
+  .centeredImage
+    {
+    text-align:center;
+    margin-top:0px;
+    margin-bottom:0px;
+    padding:0px;
+    }
+</style>
+
+<p class="centeredImage"><img src=Figures/Anomaly_Recent.png></p>
+
+<p>Indeed, there is really not much warming, and it certainly appears to be constant. But only looking at the last 15 years is silly! Here is the data since 1880, which is as far back as the temperature estimates go. In the full data, I am showing the uncertainty in the temperature anomaly in each year with a colored band. Basically, any temperature anomaly that falls within the band is consistent with the measurements we have.</p>
+<p class="centeredImage"><img src=Figures/Anomaly_Full.png></p>
+
+<p>This data shows a few things really clearly.</p>
+<ol>
+<li>The global average temperatures have <em>definitely</em> increased since 1900 or so.</li>
+<li>The values are high correlated. What I mean by that is that temperatures in a given year are related to temperatures in previous years. The most obvious example of that is the plateau from about 1940-1970, which was <a href="http://www.newscientist.com/article/dn11639-climate-myths-the-cooling-after-1940-shows-co2-does-not-cause-warming.html#.VZlUi63InK4">likely caused</a> by increased aerosols from industrial activity and volcano eruptions.</li>
+<li>The apparent turnover at recent times is dubious, precisely because of the correlated temperatures.</li>
+</ol>
+<p>The rest of this post will focus on leveraging some heavy statistical machinery on the last point to answer the following question:</p>
+<p><strong> "Does the data support the hypothesis that temperatures have stopped increasing in the last 1-2 decades?" </strong></p>
+<h1>Bayesian Model Selection</h1>
+<p>The statistical machinery I will use here is bayesian model selection. It centers on Bayes' equation:</p>
+<div class="math">$$
+P(\theta|D, M) = \frac{P(D|\theta, M) P(\theta|M)}{P(D|M)}
+$$</div>
+<p>In words, Bayes' equation says that the probability of a set of model parameters (<span class="math">\(\theta\)</span>), given the data we have (D) and the model we choose (M), is equal to the probability of the data given the parameters and the model, times the probability of the parameters, and divided by the probability of the data under the model. The individual terms in Bayes' equation are:</p>
+<ul>
+  <li> Posterior Probability Function: <span class="math">\(P(\theta|D, M)\)</span> </li>
+  <li> Likelihood Function: <span class="math">\(P(D|\theta, M)\)</span> </li>
+  <li> Prior Probability: <span class="math">\(P(\theta|M)\)</span> </li>
+  <li> Bayesian Evidence: <span class="math">\(P(D|M)\)</span> </li>
+</ul>
+
+<p>The likelihood function is a measure of how far away the value predicted by the model is from the data. Model parameters that predict the value far from what it actually is have low probability. A typical function for this is the gaussian likelihood that compares each data point (<span class="math">\(x_i, y_i, \sigma_i\)</span>) to what the model predicts:</p>
+<div class="math">$$
+P(D|\theta, M) = \prod_i \frac{1}{\sqrt{2\pi\sigma_i^2}} e^{-0.5(y_i - M(x_i, \theta))^2 / \sigma_i^2}
+$$</div>
+<p>The prior probability function uses information we already have to adjust the probability of the given model parameters. I could do whole posts about the prior function, and other people have, but for this project I will exclusively use flat, uninformative priors.</p>
+<p>In many applications where we only care about the best parameter values, the bayesian evidence is completely ignored since it is a constant for a given dataset and model, and is difficult to calculate. However, it is very important for choosing which model best describes the data so I will focus on it a bit more. Here is the evidence in its full glory:</p>
+<div class="math">$$
+P(D|M) = \int P(D|\theta, M)P(\theta|M)d^N\theta
+$$</div>
+<p>Basically, the bayesian evidence is a weighted sum of the likelihood function over the entire possible parameter space. The nice thing is that it mathematically implements <a href="https://en.wikipedia.org/wiki/Occam's_razor">Occam's razor</a> since models with more parameters but equal predictive capability will have a larger parameter space, which means a lot more space with low likelihood, and so the evidence decreases. However, adding parameters that significantly improve the predictive capability of the model will <em>increase</em> the evidence even though the parameter space increases. This is exactly why bayesian evidence is used to determine which model best describes the data, and is why I will be using it here. </p>
+<h1>The models</h1>
+<p>I will try out four different models for the data and compare the bayesian evidence for each.</p>
+<ul>
+<li>A constant model with one parameter (<span class="math">\(\Delta T_0\)</span>).</li>
+<li>A fifth-order polynomial given by <span class="math">\(\Delta T = c_0 + c_1t + c_2t^2 + c_3t^3 + c_4t^4 + c_5t^5\)</span> with parameters <span class="math">\(\theta_{M_2} = c_0, c_1, c_2, c_3, c_4, c_5\)</span></li>
+<li>An exponential growth model given by <span class="math">\(\Delta T = \Delta T_0 + e^{f(t-t_0)}\)</span> with parameters <span class="math">\(\theta_{M3} = \Delta T_0, f, t_0\)</span></li>
+<li>An exponential growth model with a stopping time at which <span class="math">\(\Delta T\)</span> becomes constant. It has parameters <span class="math">\(\theta_{M4} = \Delta T_0, f, t_0, t_{stop}\)</span></li>
+</ul>
+<p>The evidence calculation is very computationally difficult for most algorithms, but I will be using the <a href="http://arxiv.org/abs/0809.3437">MultiNest algorithm</a> that is designed specifically for bayesian evidence calculation. There is a nice Python wrapper to the algorithm <a href="https://github.com/JohannesBuchner/PyMultiNest">here</a>. For any interested parties, I have a <a href="https://github.com/kgullikson88/General/blob/a0803368154b18e4e051e35b77b1a2eb41e51dc1/Fitters.py#L947">wrapper</a> to <em>that</em> that makes this whole model comparison thing easier and a bit more "pythonic". I did all of this analysis in a ipython notebook <a href="https://github.com/kgullikson88/Ipython_Notebooks/blob/master/Climate_Data_multinest.ipynb">here</a>.</p>
+<h1>The Fits and Bayesian Evidence</h1>
+<p>Here is a visual representation of the four fits. The data is in blue, and I have removed the uncertainties for clarity. Check back above to remind yourself how big the errors are though! The red lines are 100 samples from the posterior probability function. Remember, the posterior probability function gives us what parameters are most compatible with the data so the spread in red lines tells you something about the range of reasonable parameters.</p>
+<style type="text/css">
+.floated_img
+{
+    float: left;
+}
+.section {
+  width: 50%;
+  height: 50%;
+  border: solid 1px #000;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+}
+.section img {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin: auto;
+  max-height: 90%;
+  max-width: 90%;
+}
+</style>
+
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td><img src="Figures/Constant.png" width= "100%"  border="0"></td>
+    <td><img src="Figures/Polynomial.png" width= "100%"  border="0"></td>
+  </tr>
+  <tr>
+    <td><img src="Figures/ExpFit.png" width= "100%"  border="0"></td>
+    <td><img src="Figures/ExpFit_Stop.png" width= "100%"  border="0"></td>
+  </tr>
+</table>
+
+<p>The constant model is very obviously bad and was chosen to be so. The polynomial fit reproduces the data much better, but so does the exponential fit that has 3 fewer parameters. </p>
+<p>Let's take a look at the bayesian evidence for each of the three first models. Since the multinest algorithm numerically calculates the evidence, it has some uncertainty that I also quote. Also note that the values quoted here are actually <em><span class="math">\(log(evidence)\)</span></em> rather than just the evidence (that makes it computationally more stable).</p>
+<ul>
+<li>Constant model evidence: <span class="math">\(34.11 \pm 0.02\)</span></li>
+<li>Polynomial model evidence: <span class="math">\(55.01 \pm 0.01\)</span></li>
+<li>Exponential model evidence: <span class="math">\(101.7 \pm 0.1\)</span></li>
+</ul>
+<p>So the evidence lines up very well with both the visual quality of the fits and Occam's razor: The constant model has only one parameter, but very poor predictive power. The polynomial model has high predictive power, but a very large parameter space. The exponential growth model has the best of both worlds, and has the highest evidence. </p>
+<p>So now that we know that the bayesian evidence gives results that line up with intuition, what does it say about the final model I have tested (exponential growth that has recently stopped)? The evidence for that model is:</p>
+<ul>
+<li>Exponential model with GW stop evidence: <span class="math">\(100.76 \pm 0.06\)</span></li>
+</ul>
+<p>The evidence for the final model is just slightly smaller than for the exponential growth model. Now, the actual values are not as important as their <em>ratio</em>, so lets take a look at the ratio of each model to every other model in the table below. I will convert to actual evidence instead of log(evidence) so that we can really compare how much the data favors one model over the other.</p>
+<style type="text/css">
+.tg  {border-collapse:collapse;border-spacing:0;}
+.tg td{font-family:Arial, sans-serif;font-size:14px;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;}
+.tg th{font-family:Arial, sans-serif;font-size:14px;font-weight:normal;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:keep-all;}
+@media screen and (max-width: 767px) {.tg {width: auto !important;}.tg col {width: auto !important;}.tg-wrap {overflow-x: auto;-webkit-overflow-scrolling: touch;}}</style>
+
+<div class="tg-wrap"><table class="tg">
+  <col width="120">
+  <col width="120">
+  <col width="120">
+  <col width="120">
+  <col width="150">
+  <tr>
+    <th class="tg-031e"></th>
+    <th class="tg-031e">Constant</th>
+    <th class="tg-031e">Polynomial</th>
+    <th class="tg-031e">Exponential</th>
+    <th class="tg-031e">Exponential-Stop</th>
+  </tr>
+  <tr>
+    <td class="tg-031e">Constant</td>
+    <td class="tg-031e">1</td>
+    <td class="tg-031e"></td>
+    <td class="tg-031e"></td>
+    <td class="tg-031e"></td>
+  </tr>
+  <tr>
+    <td class="tg-031e">Polynomial</td>
+    <td class="tg-031e"><span class="math">\(8 \times 10^{-10}\)</span></td>
+    <td class="tg-031e">1</td>
+    <td class="tg-031e"></td>
+    <td class="tg-031e"></td>
+  </tr>
+  <tr>
+    <td class="tg-031e">Exponential</td>
+    <td class="tg-031e"><span class="math">\(4.5 \times 10^{-30}\)</span></td>
+    <td class="tg-031e"><span class="math">\(5 \times 10^{-21}\)</span></td>
+    <td class="tg-031e">1</td>
+    <td class="tg-031e"></td>
+  </tr>
+  <tr>
+    <td class="tg-031e">Exponential-Stop</td>
+    <td class="tg-031e"><span class="math">\(10^{-29}\)</span></td>
+    <td class="tg-031e"><span class="math">\(10^{-20}\)</span></td>
+    <td class="tg-031e"><span class="math">\(2.5 \pm 0.3\)</span></td>
+    <td class="tg-031e">1</td>
+  </tr>
+</table></div>
+
+<p>Clearly, the constant and polynomial models are terrible; the data supports the hypothesis of an exponential model by many orders of magnitude over either of them. The exponential and exponential-stop models are very comparable; the data favors the simpler model by a factor of <span class="math">\(\sim 2.5\)</span>, but that is not really enough of a difference to reject either model. What I can say is:</p>
+<p><strong>"The data do not favor a model where global temperatures have stopped warming."</strong></p>
+<p>There is one final thing to look at: what year does the data suggest global warming stopped under that model? Here is a histogram of samples from the posterior probability function for that parameter:</p>
+<p class="centeredImage"><img src="Figures/GW_Stoptime.png"></p>
+
+<p>The model prefers very recent years, which means most of the predicted temperature anomalies are identical to the simple exponential model. In fact, many of the samples have the warming trend stopping <em>in the future</em>, where <strong>all</strong> of the model-predicted temperatures are the same as in the simpler model. If the warming trend had truly stopped, this model would have been able to pick when the trend stopped to within a few years. The fact that the posterior probability function is roughly flat for the last decade, coupled with the fact that the bayesian evidence does not favor the stopping model, tells me that it is a poor model for the data. </p>
+<p>Please stop saying that global warming has stopped, and feel free to send this to anyone who thinks it has!</p>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+    
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = '//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+    mathjaxscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'AMS' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); ";
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script></div>
+    <footer>
+<p class="meta">
+  <span class="byline author vcard">
+    Posted by <span class="fn">
+        Kevin Gullikson
+    </span>
+  </span>
+<time datetime="2015-07-06T05:00:00-05:00" pubdate>Mon 06 July 2015</time>  <span class="categories">
+    <a class='category' href='http://kgullikson88.github.io/blog/category/bayesian-methods.html'>Bayesian Methods</a>
+  </span>
+  <span class="categories">
+    <a class="category" href="http://kgullikson88.github.io/blog/tag/model-comparison.html">Model Comparison</a>,    <a class="category" href="http://kgullikson88.github.io/blog/tag/political.html">Political</a>  </span>
+</p><div class="sharing">
+</div>    </footer>
+  </article>
+
+</div>
+<aside class="sidebar">
+  <section>
+    <h1>Recent Posts</h1>
+    <ul id="recent_posts">
+      <li class="post">
+          <a href="http://kgullikson88.github.io/blog/climate-change.html">On Bayesian Model Comparison and Climate Change</a>
+      </li>
+      <li class="post">
+          <a href="http://kgullikson88.github.io/blog/first-post.html">First Post</a>
+      </li>
+    </ul>
+  </section>
+  <section>
+      
+    <h1>Categories</h1>
+    <ul id="recent_posts">
+        <li><a href="http://kgullikson88.github.io/blog/category/bayesian-methods.html">Bayesian Methods</a></li>
+        <li><a href="http://kgullikson88.github.io/blog/category/misc.html">misc</a></li>
+    </ul>
+  </section>
+ 
+
+  <section>
+  <h1>Tags</h1>
+    <a href="http://kgullikson88.github.io/blog/tag/political.html">Political</a>,    <a href="http://kgullikson88.github.io/blog/tag/model-comparison.html">Model Comparison</a>  </section>
+
+
+    <section>
+        <h1>Social</h1>
+        <ul>
+            <li><a href="https://www.facebook.com/kevin.gullikson" target="_blank">Facebook</a></li>
+            <li><a href="https://plus.google.com/u/0/+KevinGullikson" target="_blank">Google+</a></li>
+            <li><a href="http://www.linkedin.com/in/KevinGullikson" target="_blank">LinkedIn</a></li>
+            <li><a href="http://github.com/kgullikson88" target="_blank">Github</a></li>
+        </ul>
+    </section>
+    <section>
+        <h1>Blogroll</h1>
+        <ul>
+            <li><a href="http://www.as.utexas.edu/~kgulliks/index.html" target="_blank">My Academic Website</a></li>
+        </ul>
+    </section>
+
+</aside>    </div>
+  </div>
+  <footer role="contentinfo"><p>
+    Copyright &copy;  2015  Kevin Gullikson &mdash;
+  <span class="credit">Powered by <a href="http://getpelican.com">Pelican</a></span>
+</p></footer>
+  <script src="http://kgullikson88.github.io/blog/theme/js/modernizr-2.0.js"></script>
+  <script src="http://kgullikson88.github.io/blog/theme/js/ender.js"></script>
+  <script src="http://kgullikson88.github.io/blog/theme/js/octopress.js" type="text/javascript"></script>
+</body>
+</html>
