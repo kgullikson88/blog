@@ -85,7 +85,7 @@ I will try out five different models for the data and compare the bayesian evide
 The evidence calculation is very computationally difficult for most algorithms, but I will be using the [MultiNest algorithm](http://arxiv.org/abs/0809.3437) that is designed specifically for bayesian evidence calculation. There is a nice Python wrapper to the algorithm [here](https://github.com/JohannesBuchner/PyMultiNest). For any interested parties, I have a [wrapper](https://github.com/kgullikson88/General/blob/a0803368154b18e4e051e35b77b1a2eb41e51dc1/Fitters.py#L947) to *that* that makes this whole model comparison thing easier and a bit more "pythonic". I did all of this analysis in a ipython notebook [here](https://github.com/kgullikson88/Ipython_Notebooks/blob/master/Climate_Data_multinest.ipynb), and you can see how I use my wrapper there.
 
 # The Fits and Bayesian Evidence
-Here is a visual representation of the fits. The data is in blue, and I have removed the uncertainties for clarity. Check back above to remind yourself how big the errors are though! The red lines are 100 samples from the posterior probability function. Remember, the posterior probability function gives us what parameters are most compatible with the data so the spread in red lines tells you something about the range of reasonable parameters. Small values indicate that the row model is favored over column models, while large values indicate that the column model is favored over the row model (e.g. the polynomial model is favored over the constant model because the value in the polynomial row and the constant column is very small). 
+Here is a visual representation of the fits. The data is in blue, and I have removed the uncertainties for clarity. Check back above to remind yourself how big the errors are though! The red lines are 100 samples from the posterior probability function. Remember, the posterior probability function gives us what parameters are most compatible with the data so the spread in red lines tells you something about the range of reasonable parameters. 
 
 
 <style type="text/css">
@@ -141,7 +141,7 @@ So now that we know that the bayesian evidence gives results that line up with i
  - Exponential model with GW stop evidence: $100.76 \pm 0.06$
  - Correlated Noise model: $77.24 \pm 0.03$
  
-Now, the actual values are not as important as their *ratio*, so lets take a look at the ratio of each model to every other model in the table below. I will convert to actual evidence instead of log(evidence) so that we can really compare how much the data favors one model over the other.
+Now, the actual values are not as important as their *ratio*, so lets take a look at the ratio of each model to every other model in the table below. I will convert to actual evidence instead of log(evidence) so that we can really compare how much the data favors one model over the other. Small values indicate that the row model is favored over column models, while large values indicate that the column model is favored over the row model (e.g. the polynomial model is favored over the constant model because the value in the polynomial row and the constant column is very small). 
 
 <style type="text/css">
 .tg  {border-collapse:collapse;border-spacing:0;}
