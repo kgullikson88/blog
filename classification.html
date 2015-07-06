@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Classification with Clouds! &mdash; Adventures of the Datastronomer</title>
+  <meta name="author" content="Kevin Gullikson">
+
+
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+    <link href="http://kgullikson88.github.io/blog/favicon.png" rel="icon">
+
+  <link href="http://kgullikson88.github.io/blog/theme/css/main.css" media="screen, projection"
+        rel="stylesheet" type="text/css">
+
+  <link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic"
+        rel="stylesheet" type="text/css">
+  <link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic"
+        rel="stylesheet" type="text/css">
+</head>
+
+<body>
+  <header role="banner"><hgroup>
+  <h1><a href="http://kgullikson88.github.io/blog/">Adventures of the Datastronomer</a></h1>
+</hgroup></header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+</ul>
+
+
+
+<ul class="main-navigation">
+    <li >
+    <a href="http://kgullikson88.github.io/blog/category/bayesian-methods.html">Bayesian methods</a>
+    </li>
+    <li class="active">
+    <a href="http://kgullikson88.github.io/blog/category/machine-learning.html">Machine learning</a>
+    </li>
+    <li >
+    <a href="http://kgullikson88.github.io/blog/category/misc.html">Misc</a>
+    </li>
+</ul></nav>
+  <div id="main">
+    <div id="content">
+<div>
+  <article class="hentry" role="article">
+<header>
+      <h1 class="entry-title">Classification with Clouds!</h1>
+    <p class="meta">
+<time datetime="2015-04-19T23:00:00-05:00" pubdate>Sun 19 April 2015</time>    </p>
+</header>
+
+  <div class="entry-content"><p>One of the main branches of machine learning is classification, where you put data points in two or more groups based on whatever information you have. In this post, I will be using classification for something I have experienced much more than I would like: night-time cloud cover over McDonald Observatory. I am doing this both to learn about the various algorithms available for classification problems, and to prepare some data for a later blog post quantifying observer luck at McDonald Observatory. </p>
+<p>Now, let's get to it! What data do we have? Well, the observatory has a <a href="http://www.weather.as.utexas.edu">weather archive</a> that has quite a bit of information on either 1- or 5-minute intervals. For this project, I will be using the basic weather information, which includes the temperature, pressure, humidity, dew point, and dust counts, as well as the cloud sensor data. Wait, if we have a cloud sensor, why do I need to do any kind of classification you ask? Well, there are long stretches of missing data with the cloud sensor that I want to fill in using the basic data. </p>
+<p>Before we go on, a quick primer on how the cloud sensor works. What the sensor is actually doing is measuring both the "sky temperature" and the ambient temperature. The sky temperature is measured in the mid-infrared, and I imagine is being fit more or less to a blackbody curve. Without clouds, this temperature will be very cold. However, clouds will reflect some of the mid-infrared radiation coming from the Earth itself, and will cause the cloud sensor to measure a warmer sky temperature. The ambient temperature is measured in some much simpler way, since it is just getting the temperature wherever the sensor is physically located. So, a large difference between the sky and ambient temperatures indicates that the sky is clear, while a smaller difference means the sky is cloudy. The suggested values from the <a href="http://weather.as.utexas.edu/weather_graph/Cloudy.html">weather site</a> are:</p>
+<ul>
+<li><span class="math">\(\Delta T &lt; -54\)</span>: Clear</li>
+<li><span class="math">\(-54 &lt; \Delta T &lt; -18\)</span>: Partly cloudy</li>
+<li><span class="math">\(\Delta T &gt; -18\)</span>: Very cloudy</li>
+</ul>
+<p>So now I have the three classes to use in classification: Clear, partly cloudy, and very cloudy. Let's take a look at the data. For brevity, I will not show every python command that I used to do this analysis; if you want, the ipython notebook with a bit less explanation but all of the code is available <a href="Downloads/CloudCover_Estimation.ipynb">here</a>. The first thing I do is read in the data files using <a href="http://pandas.pydata.org/">pandas</a>.</p>
+<div class="highlight"><pre><span class="n">cloud_data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s">&#39;data/clouds.dat&#39;</span><span class="p">,</span> <span class="n">na_values</span><span class="o">=</span><span class="s">&#39;+-.----E+--&#39;</span><span class="p">,</span> <span class="n">parse_dates</span><span class="o">=</span><span class="p">{</span><span class="s">&quot;Date&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">]})</span>
+<span class="n">basic_data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s">&#39;data/basic_weather.dat&#39;</span><span class="p">,</span> <span class="n">na_values</span><span class="o">=</span><span class="s">&#39;+-.----E+--&#39;</span><span class="p">,</span> <span class="n">parse_dates</span><span class="o">=</span><span class="p">{</span><span class="s">&quot;Date&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">]})</span>
+<span class="n">basic_data</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">basic_data</span><span class="o">.</span><span class="n">Date</span>
+<span class="n">cloud_data</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">cloud_data</span><span class="o">.</span><span class="n">Date</span>
+</pre></div>
+
+
+<p>The first two lines are reading in the actual data, while the second two are setting the index to be a datetime object instead of just an integer. Now, the basic data has a good amount of missing data, but it is generally short enough timespans that we can fill in the missing data through interpolation or re-calculation. The dew point is missing much more often than anything else, but <a href="http://iridl.ldeo.columbia.edu/dochelp/QA/Basic/dewpoint.html">is easily calculable</a> from the temperature, pressure, and relative humidity. I just make a new column with the calculated dew point with the following code:</p>
+<div class="highlight"><pre><span class="n">T</span> <span class="o">=</span> <span class="p">(</span><span class="n">basic_data</span><span class="p">[</span><span class="s">&#39;base-TEMP_AVG&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="mf">32.0</span><span class="p">)</span><span class="o">*</span><span class="mf">5.0</span><span class="o">/</span><span class="mf">9.0</span> <span class="o">+</span> <span class="mi">273</span>
+<span class="n">Es</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">5423</span><span class="o">*</span><span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="mf">273.</span> <span class="o">-</span> <span class="mf">1.0</span><span class="o">/</span><span class="n">T</span><span class="p">))</span>
+<span class="n">Td</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.</span><span class="o">/</span><span class="mf">273.</span> <span class="o">-</span> <span class="p">(</span><span class="mf">1.</span><span class="o">/</span><span class="mf">5423.</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">basic_data</span><span class="p">[</span><span class="s">&#39;base-R.H._AVG&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">Es</span><span class="o">/</span><span class="mf">100.</span><span class="p">))</span><span class="o">**-</span><span class="mi">1</span>
+<span class="n">basic_data</span><span class="p">[</span><span class="s">&#39;DEWPT_calculated&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">Td</span> <span class="o">-</span> <span class="mf">273.</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="mf">9.</span><span class="o">/</span><span class="mf">5.</span><span class="p">)</span> <span class="o">+</span> <span class="mi">32</span>
+</pre></div>
+
+
+<p>The first and last lines are conversions from Fahrenheit to Kelvin and back, while the middle two lines are doing the actual dew point calculation. I am not quite done with the basic data because it still has a few times that are missing more than just the dew point. Here is where I use the datetime index for the first time, and use the built-in pandas interpolate function to do a linear interpolation in time:</p>
+<div class="highlight"><pre><span class="n">basic_data</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s">&#39;time&#39;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+
+
+<p>Now that I have filled in the missing basic weather data, I move on to the cloud sensor data. This is the hard part, because it has day- to week-long time spans where the sensor was not working for some reason. Anyone who has looked up knows that the number of clouds in the sky can change on much faster timescales than that, so interpolating is not going to be a very good way to go. The first thing I do is add the class labels to the data.</p>
+<div class="highlight"><pre><span class="k">def</span> <span class="nf">get_cloudiness</span><span class="p">(</span><span class="n">Tdiff</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">Tdiff</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">54</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">0</span>
+    <span class="k">elif</span> <span class="o">-</span><span class="mi">18</span> <span class="o">&gt;</span> <span class="n">Tdiff</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="mi">54</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">2</span>
+<span class="n">cloud_data</span><span class="p">[</span><span class="s">&#39;cloudiness&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cloud_data</span><span class="p">[</span><span class="s">&#39;cloud-Sky-ambient&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">get_cloudiness</span><span class="p">)</span>
+</pre></div>
+
+
+<h2>Exploratory Data Analysis</h2>
+<p>Now that I have the data loaded up, let's take a look at it. The first thing to do is plot the temperature, relative humidity, and cloud cover class from the cloud sensor data:
+<img src='Figures/Cloud_Data.png' width="1000"></p>
+<p>The heaviest cloud cover tends to happen at the extremes of the plot: high temperature, high humidity. That makes sense: higher temperatures mean more water vaper <em>can</em> be in the air, and higher humidity means more water vapor <em>is</em> in the air. Both will make clouds.</p>
+<p>Now, I will combine the basic data with the cloud data to get a much more in-depth view. This is again a single line of python code. Since both have datetime values as their index, the merge is done based on the time of measurement.</p>
+<div class="highlight"><pre><span class="n">merged</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">basic_data</span><span class="p">,</span> <span class="n">cloud_data</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s">&#39;left&#39;</span><span class="p">)</span>
+</pre></div>
+
+
+<p>Now, I did a little bit of research and apparently clouds are more likely to form if the temperature and humidity are highly variable throughout the atmosphere <a href="http://onlinelibrary.wiley.com/doi/10.1256/qj.02.190/pdf">1</a>. I don't have access to spatial variability, but I do have temporal variability of those quantities so I will make a couple more columns with the time derivative of the relative humidity and temperature:</p>
+<div class="highlight"><pre><span class="n">merged</span><span class="p">[</span><span class="s">&#39;RH_Change&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">merged</span><span class="p">[</span><span class="s">&#39;base-R.H._AVG&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pct_change</span><span class="p">(</span><span class="n">periods</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">merged</span><span class="p">[</span><span class="s">&#39;T_Change&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">merged</span><span class="p">[</span><span class="s">&#39;base-TEMP_AVG&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pct_change</span><span class="p">(</span><span class="n">periods</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+
+
+<p>I will also combine the dust sensor data and use the log since it has a very large dynamic range</p>
+<div class="highlight"><pre><span class="n">merged</span><span class="p">[</span><span class="s">&#39;Dust&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">merged</span><span class="p">[</span><span class="s">&#39;base-DUST1_CRNT&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">merged</span><span class="p">[</span><span class="s">&#39;base-DUST2_CRNT&#39;</span><span class="p">])</span>
+</pre></div>
+
+
+<p>Now, I use <a href="http://stanford.edu/~mwaskom/software/seaborn/">seaborn</a> to plot the relationship of every variable to each other at once. For those with a sharp eye, I am only considering night-time data (when the 'daylight' row is less than 1 million).</p>
+<div class="highlight"><pre><span class="n">sns</span><span class="o">.</span><span class="n">pairplot</span><span class="p">(</span><span class="n">merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">merged</span><span class="p">[</span><span class="s">&#39;cloud-Daylight&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">1e6</span><span class="p">)],</span> <span class="n">dropna</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s">&#39;cloudiness&#39;</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;base-TEMP_AVG&#39;</span><span class="p">,</span> <span class="s">&#39;base-R.H._AVG&#39;</span><span class="p">,</span> <span class="s">&#39;base-PRESS_AVG&#39;</span><span class="p">,</span> <span class="s">&#39;DEWPT_calculated&#39;</span><span class="p">,</span> <span class="s">&#39;RH_Change&#39;</span><span class="p">,</span> <span class="s">&#39;T_Change&#39;</span><span class="p">,</span> <span class="s">&#39;Dust&#39;</span><span class="p">])</span>
+</pre></div>
+
+
+<p><img src='Figures/All_Vars.png'></p>
+<p>There is a <em>lot</em> of information in this plot. The red points are where it is very cloudy, and the blue points are clear. Let's step through a bit by variable and try to summarize.</p>
+<ul>
+<li>Lower temperatures and higher humidities correlate with cloudier weather. That is pretty expected.</li>
+<li>Pressure: There doesn't seem to be much here. It does appear that more extreme pressures (either low or high) correlate with clearer nights. I'm not sure why that would be.</li>
+<li>Dew point: This is basically the same information as humidity and pressure, but does seem to have somewhat cleaner boundaries. </li>
+<li>Change in humidity and temperature: This doesn't really show much information. It sort of looks like the higher cloud levels occur when the humidity/temperature are changing more slowly. However, this is just an effect of there being more clear nights that cloudy nights. The standard deviation of the different groups is basically the same.</li>
+<li>Dust level: This is the sum of the small (<span class="math">\(0.3 \mu m\)</span>) and large (<span class="math">\(1 \mu m\)</span>) dust grains. It also doesn't seem to show much, but I know that clouds need dust in the air to form so I will keep it as a variable.</li>
+</ul>
+<h2>Classification Algorithms</h2>
+<p>To estimate cloud cover from the variables listed in the plot above, I will try a few different algorithms. To compare the different algorithms, I will split up the data into a "training set" and a "testing set". I will train each algorithm on the training set, and then see how well it predicts the right answer on the testing set. This is just cross-validation. Now, which algorithms will I use?</p>
+<h3><a href="http://en.wikipedia.org/wiki/Logistic_regression#Logistic_function.2C_odds.2C_odds_ratio.2C_and_logit">Logistic regression</a>:</h3>
+<p>Logistic regression is easiest to understand when there are only two classes instead of the three we have here. Then, it is similar to polynomial regression in that you are fitting an equation of the form</p>
+<p><span class="math">\( t = c_0 + c_1x_1 + c_2x_2 + ...\)</span></p>
+<p>to the data (x), but then taking the extra step of turning t into a probability of being in 'class 1' with the logistic function:</p>
+<p><span class="math">\( f(t) = \frac{1}{1+e^{-t}}\)</span></p>
+<p>Thus, you fit the parameters <span class="math">\(c_0, c_1, ...\)</span>, and evaluate the parameters by comparing the value of f(t) to what class the data point is in. The optimized parameters then have the properties:</p>
+<ul>
+<li>points in class 1: f(t) &gt; 0.5 (or some threshold you can play with if you want)</li>
+<li>points in class 0: f(t) &lt; 0.5</li>
+</ul>
+<p>To use the logistic function to predict the class, you just plug your data points in to get t, and then use the logistic function to get the probability of being in class 1.</p>
+<p>How do we use this for the problem here, where there are three classes? The simplest way is the 'one vs. all' classifier. Basically, you fit three sets of parameters <span class="math">\(c_0, c_1, ...\)</span> and each set corresponds to one of the classes. In our setup, you would do normal logistic regression for:</p>
+<ol>
+<li>clear vs. partly cloudy <em>or</em> very cloudy</li>
+<li>partly cloudy vs. clear <em>or</em> very cloudy</li>
+<li>very cloudy vs. clear <em>or</em> partly cloudy.</li>
+</ol>
+<p>Then when you want to predict which class a new data point has (how cloudy is it), you find the probabilities of each class and take the one with the highest probability as the predicted class.</p>
+<p>I will be using the <a href="http://scikit-learn.org/stable/modules/linear_model.html#logistic-regression">LogisticRegression</a> class in <a href="http://scikit-learn.org/stable/">scikit-learn</a> to do the actual work of fitting the data. This class uses a regularization parameter (C), which is basically just a way to keep the parameters <span class="math">\(c_0, c_1, ...\)</span> small and prevents over-fitting. The value to use for regularization depends on the specific data you are using, and so we again use cross-validation to choose it. In this case, there is a <a href="http://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegressionCV.html">LogisticRegressionCV</a> class that does all of that for you so I don't even need to do much of anything special.</p>
+<h3><a href="http://scikit-learn.org/dev/modules/tree.html">Decision Tree</a></h3>
+<p>A decision tree is basically just a flowchart that leads to the classification labels (in our case clear, partly cloudy, and very cloudy). Or, in programmer-speak, it is a long chain of if-then-else decision rules. An example assessing how likely a person was to have survived the Titanic is shown below.</p>
+<p><img src="Images/CART_tree_titanic_survivors.png" ></p>
+<p>Fitting a decision tree from data is done by splitting each input variable (temperature, pressure, etc) at some value. The number of branches and numerical value of the splits are adjusted until each "leaf" only contains points from one class.</p>
+<p>The chief advantage of a decision tree is that it is very easy to interpret. For example, it is really easy to see from the above tree that the best way to survive the Titanic was to either be a woman or a young boy without many siblings. For this reason, decision trees are popular machine learning tools to provide actionable results.</p>
+<p>I will again be using scikit-learn for the <a href="http://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html">decision tree classifier</a>. The full decision tree has far too many levels to display in a blog post, but here is a version with only three levels.</p>
+<p><img src="Figures/Decision_Tree.png"></p>
+<p>We immediately see that the tree picks out a couple things (which we already know):</p>
+<ol>
+<li>Clear nights occur when the temperature is high and the dew points are low (third leaf)</li>
+<li>Cloudy nights occur when the temperature is low and the dew point is high (sixth leaf)</li>
+<li>The most important variables are temperature and dew point (since nothing else appears in this truncated tree).</li>
+</ol>
+<p>When I run the full tree, it ends up with 31 levels. The importance of each variable is shown below:</p>
+<p><img src="Figures/Decision_Tree_Importance.png" width="500"></p>
+<p>Temperature and dew point are still the most important variables, but now the dust count and pressure show up as important too. The time derivative of temperature and relative humidity are not very useful predictors, so we will not use them for any of the final predictors. The overall cross-validation accuracy even increases a bit when we drop these variables!</p>
+<h3><a href="http://scikit-learn.org/dev/modules/ensemble.html#forests-of-randomized-trees">Random Forest Classifier</a></h3>
+<p>A random forest is an improvement upon a decision tree. Basically, a bunch of decision trees are all trained at once with random subsamples of the data. To make a prediction, the data is sent through each tree and the total probability is calculated from the ensemble. As you add more trees to the "forest," the result gets more accurate but is also more prone to over-fitting and becomes more computationally expensive. </p>
+<p>We will cross-validate to find the best number of trees. There is no built-in class for easily cross-validating the number of trees in the forest, but scikit-learn does provide a very useful cross-validation module. The key code to do the cross-validation is shown here:</p>
+<div class="highlight"><pre><span class="c"># Cross-validate a random forest classifier with 3-1000 trees</span>
+<span class="n">N</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logspace</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span>
+<span class="n">scores_arr</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">err_arr</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+    <span class="n">clf</span> <span class="o">=</span> <span class="n">RandomForestClassifier</span><span class="p">(</span><span class="n">n_estimators</span><span class="o">=</span><span class="n">n</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">cross_validation</span><span class="o">.</span><span class="n">cross_val_score</span><span class="p">(</span><span class="n">clf</span><span class="p">,</span> <span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">cv</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">scores_arr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">scores</span><span class="p">))</span>
+    <span class="n">err_arr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">scores</span><span class="p">))</span>
+</pre></div>
+
+
+<p>The cross_val_score function takes the classifier and the data, and does 3 independent cross-validation trials for each number of trees. I then save the average and standard deviation of the scores and plot them:</p>
+<p><img src="Figures/RandomForest_CV.png"></p>
+<p>So the accuracy increases with the number of trees, but begins leveling off after about 100 trees. For the final random forest classifier, I will use 100 trees.</p>
+<h3><a href="http://scikit-learn.org/dev/modules/neighbors.html#nearest-neighbors-classification">K-nearest neighbors</a></h3>
+<p>The K-nearest neighbors algorithm is pretty easy to understand: to classify a new data point, you just take several of the points with known labels closest to it, and do a majority vote. If most of the points near the data point are cloudy, for instance, then the new data point will be classified as cloudy. Unlike the other algorithms, K nearest neighbors does not build up any kind of global model that gets applied to the data. Instead, it just uses the training data itself. As with the random forest classifier, we will use cross-validation to choose the 'best' number of neighbors:</p>
+<p><img src="Figures/KNN_CV.png"></p>
+<p>The drop off towards large number of neighbors is the effect of increasing bias, which is the opposite of overfitting. It is equivalent to fitting a straight line through data when you should fit a quadratic function. The best number of nearest neighbors is about 5, which is actually surprisingly small.</p>
+<h2>Finding the best estimator.</h2>
+<p>We are finally in a position to estimate the cloud cover for the missing values. The figure below shows the cross-validation accuracy of each estimator.</p>
+<p><img src="Figures/Estimator_Accuracy.png" width="500"></p>
+<p>The best estimator for this dataset is k-nearest neighbors, with the random forest close on its heels. The best we can do is about 92% accuracy, but that is good enough for my purposes. </p>
+<p>All that is left now is to fill in the missing values in the cloud data with the k-nearest neighbors estimation.</p>
+<div class="highlight"><pre><span class="c"># Get the predicted cloudiness</span>
+<span class="n">X_df</span> <span class="o">=</span> <span class="n">data</span><span class="p">[[</span><span class="s">&#39;base-TEMP_AVG&#39;</span><span class="p">,</span> <span class="s">&#39;base-PRESS_AVG&#39;</span><span class="p">,</span> <span class="s">&#39;DEWPT_calculated&#39;</span><span class="p">,</span> <span class="s">&#39;Dust&#39;</span><span class="p">]]</span>
+<span class="n">X_norm</span> <span class="o">=</span> <span class="n">scale_fcn</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X_df</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+
+<span class="n">cloudiness_arr</span> <span class="o">=</span> <span class="n">clf</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_norm</span><span class="p">)</span>
+<span class="n">cloudiness</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">cloudiness_arr</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">X_df</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+<span class="c"># Fill in the missing values</span>
+<span class="n">idx</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">cloudiness</span><span class="o">.</span><span class="n">isnull</span><span class="p">()]</span>
+<span class="n">data</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="s">&#39;cloudiness&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cloudiness</span><span class="o">.</span><span class="n">ix</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+</pre></div>
+
+
+<h2>Test my results!</h2>
+<p>Are you at McDonald now? Try out my results. Ideally, I would like to have a web interface, but I'm pretty sure that would require a lot more work to make a dynamic website with django or something. In lieu of that, you can use this ipython notebook, along with a pickled version of the classifier and scaler!</p>
+<ul>
+<li><a href="Downloads/Predict_Clouds.ipynb">ipython notebook</a></li>
+<li>Pickled classifier (OS-dependent, I think. Right click and save as a file to download):<ul>
+<li><a href="Downloads/classifier_linux_x86_64.pkl">Linux x86_64</a></li>
+<li><a href="Downloads/classifier_mac_osx.pkl">Mac OSX</a></li>
+</ul>
+</li>
+</ul>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+    
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = '//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+    mathjaxscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'AMS' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); ";
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script></div>
+    <footer>
+<p class="meta">
+  <span class="byline author vcard">
+    Posted by <span class="fn">
+        Kevin Gullikson
+    </span>
+  </span>
+<time datetime="2015-04-19T23:00:00-05:00" pubdate>Sun 19 April 2015</time>  <span class="categories">
+    <a class='category' href='http://kgullikson88.github.io/blog/category/machine-learning.html'>Machine Learning</a>
+  </span>
+  <span class="categories">
+    <a class="category" href="http://kgullikson88.github.io/blog/tag/classification.html">Classification</a>,    <a class="category" href="http://kgullikson88.github.io/blog/tag/weather.html">Weather</a>  </span>
+</p><div class="sharing">
+</div>    </footer>
+  </article>
+
+</div>
+<aside class="sidebar">
+  <section>
+    <h1>Recent Posts</h1>
+    <ul id="recent_posts">
+      <li class="post">
+          <a href="http://kgullikson88.github.io/blog/climate-change.html">On Bayesian Model Comparison and Climate Change</a>
+      </li>
+      <li class="post">
+          <a href="http://kgullikson88.github.io/blog/classification.html">Classification with Clouds!</a>
+      </li>
+      <li class="post">
+          <a href="http://kgullikson88.github.io/blog/first-post.html">First Post</a>
+      </li>
+    </ul>
+  </section>
+  <section>
+      
+    <h1>Categories</h1>
+    <ul id="recent_posts">
+        <li><a href="http://kgullikson88.github.io/blog/category/bayesian-methods.html">Bayesian Methods</a></li>
+        <li><a href="http://kgullikson88.github.io/blog/category/machine-learning.html">Machine Learning</a></li>
+        <li><a href="http://kgullikson88.github.io/blog/category/misc.html">misc</a></li>
+    </ul>
+  </section>
+ 
+
+  <section>
+  <h1>Tags</h1>
+    <a href="http://kgullikson88.github.io/blog/tag/classification.html">Classification</a>,    <a href="http://kgullikson88.github.io/blog/tag/model-comparison.html">Model Comparison</a>,    <a href="http://kgullikson88.github.io/blog/tag/political.html">Political</a>,    <a href="http://kgullikson88.github.io/blog/tag/weather.html">Weather</a>  </section>
+
+
+    <section>
+        <h1>Social</h1>
+        <ul>
+            <li><a href="https://www.facebook.com/kevin.gullikson" target="_blank">Facebook</a></li>
+            <li><a href="https://plus.google.com/u/0/+KevinGullikson" target="_blank">Google+</a></li>
+            <li><a href="http://www.linkedin.com/in/KevinGullikson" target="_blank">LinkedIn</a></li>
+            <li><a href="http://github.com/kgullikson88" target="_blank">Github</a></li>
+        </ul>
+    </section>
+    <section>
+        <h1>Blogroll</h1>
+        <ul>
+            <li><a href="http://www.as.utexas.edu/~kgulliks/index.html" target="_blank">My Academic Website</a></li>
+        </ul>
+    </section>
+
+</aside>    </div>
+  </div>
+  <footer role="contentinfo"><p>
+    Copyright &copy;  2015  Kevin Gullikson &mdash;
+  <span class="credit">Powered by <a href="http://getpelican.com">Pelican</a></span>
+</p></footer>
+  <script src="http://kgullikson88.github.io/blog/theme/js/modernizr-2.0.js"></script>
+  <script src="http://kgullikson88.github.io/blog/theme/js/ender.js"></script>
+  <script src="http://kgullikson88.github.io/blog/theme/js/octopress.js" type="text/javascript"></script>
+</body>
+</html>
