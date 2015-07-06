@@ -72,17 +72,20 @@ $$
 Basically, the bayesian evidence is a weighted sum of the likelihood function over the entire possible parameter space. The nice thing is that it mathematically implements [Occam's razor](https://en.wikipedia.org/wiki/Occam's_razor) since models with more parameters but equal predictive capability will have a larger parameter space, which means a lot more space with low likelihood, and so the evidence decreases. However, adding parameters that significantly improve the predictive capability of the model will *increase* the evidence even though the parameter space increases. This is exactly why bayesian evidence is used to determine which model best describes the data, and is why I will be using it here. 
 
 #The Models
-I will try out four different models for the data and compare the bayesian evidence for each.
+I will try out five different models for the data and compare the bayesian evidence for each.
 
  - A constant model with one parameter ($\Delta T_0$).
  - A fifth-order polynomial given by $\Delta T = c_0 + c_1t + c_2t^2 + c_3t^3 + c_4t^4 + c_5t^5$ with parameters $\theta_{M_2} = c_0, c_1, c_2, c_3, c_4, c_5$
  - An exponential growth model given by $\Delta T = \Delta T_0 + e^{f(t-t_0)}$ with parameters $\theta_{M3} = \Delta T_0, f, t_0$
  - An exponential growth model with a stopping time at which $\Delta T$ becomes constant. It has parameters $\theta_{M4} = \Delta T_0, f, t_0, t_{stop}$
+ - A correlated noise model. This one is very different from the other models in that it assumes the temperature anomaly is 0 at all times, and that the variation we see is just because of the correlated noise. I accomplish this using [gaussian processes](https://en.wikipedia.org/wiki/Gaussian_process), and using the excellent [george](https://github.com/dfm/george) code. These are a complicated beast and I don't want to spend too much time talking about them; just suffice it to say that they model the noise properties in a nice way. There are two parameters for this: the characteristic scale of the data ($\tau$) and the noise amplitude ($A$).
+
+ The first two models are there mostly for demonstration purposes, as we will see below. The exponential model comes from looking at the data and recognizing that it looks like a very noisy exponential growth. The last two are different models that assume that either the global temperatures were rising but are not anymore, or that the temperature changes we have seen are merely a result of noise. 
  
 The evidence calculation is very computationally difficult for most algorithms, but I will be using the [MultiNest algorithm](http://arxiv.org/abs/0809.3437) that is designed specifically for bayesian evidence calculation. There is a nice Python wrapper to the algorithm [here](https://github.com/JohannesBuchner/PyMultiNest). For any interested parties, I have a [wrapper](https://github.com/kgullikson88/General/blob/a0803368154b18e4e051e35b77b1a2eb41e51dc1/Fitters.py#L947) to *that* that makes this whole model comparison thing easier and a bit more "pythonic". I did all of this analysis in a ipython notebook [here](https://github.com/kgullikson88/Ipython_Notebooks/blob/master/Climate_Data_multinest.ipynb), and you can see how I use my wrapper there.
 
 # The Fits and Bayesian Evidence
-Here is a visual representation of the four fits. The data is in blue, and I have removed the uncertainties for clarity. Check back above to remind yourself how big the errors are though! The red lines are 100 samples from the posterior probability function. Remember, the posterior probability function gives us what parameters are most compatible with the data so the spread in red lines tells you something about the range of reasonable parameters.
+Here is a visual representation of the fits. The data is in blue, and I have removed the uncertainties for clarity. Check back above to remind yourself how big the errors are though! The red lines are 100 samples from the posterior probability function. Remember, the posterior probability function gives us what parameters are most compatible with the data so the spread in red lines tells you something about the range of reasonable parameters. Small values indicate that the row model is favored over column models, while large values indicate that the column model is favored over the row model (e.g. the polynomial model is favored over the constant model because the value in the polynomial row and the constant column is very small). 
 
 
 <style type="text/css">
@@ -119,6 +122,7 @@ Here is a visual representation of the four fits. The data is in blue, and I hav
     <td><img src="Figures/ExpFit.png" width= "100%"  border="0"></td>
     <td><img src="Figures/ExpFit_Stop.png" width= "100%"  border="0"></td>
   </tr>
+    <td><img src="Figures/GaussianProcess.png" width= "100%"  border="0"></td>
 </table>
 
 
@@ -132,11 +136,12 @@ Let's take a look at the bayesian evidence for each of the three first models. S
  
 So the evidence lines up very well with both the visual quality of the fits and Occam's razor: The constant model has only one parameter, but very poor predictive power. The polynomial model has high predictive power, but a very large parameter space. The exponential growth model has the best of both worlds, and has the highest evidence. 
 
-So now that we know that the bayesian evidence gives results that line up with intuition, what does it say about the final model I have tested (exponential growth that has recently stopped)? The evidence for that model is:
+So now that we know that the bayesian evidence gives results that line up with intuition, what does it say about the final models I have tested (exponential growth that has recently stopped and correlated noise)? The evidence for those models are:
 
  - Exponential model with GW stop evidence: $100.76 \pm 0.06$
+ - Correlated Noise model: $77.24 \pm 0.03$
  
-The evidence for the final model is just slightly smaller than for the exponential growth model. Now, the actual values are not as important as their *ratio*, so lets take a look at the ratio of each model to every other model in the table below. I will convert to actual evidence instead of log(evidence) so that we can really compare how much the data favors one model over the other.
+Now, the actual values are not as important as their *ratio*, so lets take a look at the ratio of each model to every other model in the table below. I will convert to actual evidence instead of log(evidence) so that we can really compare how much the data favors one model over the other.
 
 <style type="text/css">
 .tg  {border-collapse:collapse;border-spacing:0;}
@@ -149,16 +154,19 @@ The evidence for the final model is just slightly smaller than for the exponenti
   <col width="120">
   <col width="120">
   <col width="150">
+  <col width="150">
   <tr>
     <th class="tg-031e"></th>
     <th class="tg-031e">Constant</th>
     <th class="tg-031e">Polynomial</th>
     <th class="tg-031e">Exponential</th>
     <th class="tg-031e">Exponential-Stop</th>
+    <th class="tg-031e">Correlated Noise</th>
   </tr>
   <tr>
     <td class="tg-031e">Constant</td>
     <td class="tg-031e">1</td>
+    <td class="tg-031e"></td>
     <td class="tg-031e"></td>
     <td class="tg-031e"></td>
     <td class="tg-031e"></td>
@@ -169,12 +177,14 @@ The evidence for the final model is just slightly smaller than for the exponenti
     <td class="tg-031e">1</td>
     <td class="tg-031e"></td>
     <td class="tg-031e"></td>
+    <td class="tg-031e"></td>
   </tr>
   <tr>
     <td class="tg-031e">Exponential</td>
     <td class="tg-031e"><span class="math">\(4.5 \times 10^{-30}\)</span></td>
     <td class="tg-031e"><span class="math">\(5 \times 10^{-21}\)</span></td>
     <td class="tg-031e">1</td>
+    <td class="tg-031e"></td>
     <td class="tg-031e"></td>
   </tr>
   <tr>
@@ -183,12 +193,21 @@ The evidence for the final model is just slightly smaller than for the exponenti
     <td class="tg-031e"><span class="math">\(10^{-20}\)</span></td>
     <td class="tg-031e"><span class="math">\(2.5 \pm 0.3\)</span></td>
     <td class="tg-031e">1</td>
+    <td class="tg-031e"></td>
+  </tr>
+  <tr>
+    <td class="tg-031e">Correlated Noise</td>
+    <td class="tg-031e"><span class="math">\(10^{-19}\)</span></td>
+    <td class="tg-031e"><span class="math">\(2 \times 10^{-10}\)</span></td>
+    <td class="tg-031e"><span class="math">\(4 \times 10^{10} \)</span></td>
+    <td class="tg-031e"><span class="math">\(10^{10} \)</span></td>
+    <td class="tg-031e">1</td>
   </tr>
 </table></div>
 
-Clearly, the constant and polynomial models are terrible; the data supports the hypothesis of an exponential model by many orders of magnitude over either of them. The exponential and exponential-stop models are very comparable; the data favors the simpler model by a factor of $\sim 2.5$, but that is not really enough of a difference to reject either model. What I can say is:
+The constant and polynomial models are terrible. The correlated noise model has a very low evidence as well; that is because the noise model is really flexible and can fit pretty much anything. The data supports the hypothesis of an exponential model by many orders of magnitude over anything else I've tested. The exponential and exponential-stop models are very comparable; the data favors the simpler model by a factor of $\sim 2.5$, but that is not really enough of a difference to reject either model. What I can say is:
 
-**"The data do not favor a model where global temperatures have stopped warming."**
+**"The data strongly favor a model where global temperatures are rising exponentially, and do not favor a model where temperatures have stopped warming."**
 
 There is one final thing to look at: what year does the data suggest global warming stopped under that model? Here is a histogram of samples from the posterior probability function for that parameter:
 
