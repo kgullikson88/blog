@@ -1,5 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Adventures of the Datastronomer</title><link href="http://kgullikson88.github.io/blog/" rel="alternate"></link><link href="http://kgullikson88.github.io/blog/feeds/all.atom.xml" rel="self"></link><id>http://kgullikson88.github.io/blog/</id><updated>2015-07-06T05:00:00-05:00</updated><entry><title>On Bayesian Model Comparison and Climate Change</title><link href="http://kgullikson88.github.io/blog/climate-change.html" rel="alternate"></link><updated>2015-07-06T05:00:00-05:00</updated><author><name>Kevin Gullikson</name></author><id>tag:kgullikson88.github.io,2015-07-06:blog/climate-change.html</id><summary type="html">&lt;h2&gt;Or: Is there really a pause in global warming?&lt;/h2&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Adventures of the Datastronomer</title><link href="http://kgullikson88.github.io/blog/" rel="alternate"></link><link href="http://kgullikson88.github.io/blog/feeds/all.atom.xml" rel="self"></link><id>http://kgullikson88.github.io/blog/</id><updated>2015-07-26T05:00:00-05:00</updated><entry><title>Markov Chain Text Generation</title><link href="http://kgullikson88.github.io/blog/markov-chain.html" rel="alternate"></link><updated>2015-07-26T05:00:00-05:00</updated><author><name>Kevin Gullikson</name></author><id>tag:kgullikson88.github.io,2015-07-26:blog/markov-chain.html</id><summary type="html">&lt;p&gt;Most physical scientists are probably aware of the &lt;a href="www.arxiv.org"&gt;ArXiv&lt;/a&gt; website, which hosts pre-prints of scientific papers. The site is not peer-reviewed, but does have some mysterious process for weeding out the crazies. In most cases, legitimate scientific articles get posted without issue. There are occasionally delays if something in your paper raises a flag, but very rarely if ever does real research get "rejected". 
+Crackpot "research", on the other hand, is very effectively weeded out. Naturally, there is a &lt;a href="www.vixra.org"&gt;competing website&lt;/a&gt; that has no screening process and so all of the really out-there stuff gets posted there. I don't know of any real scientists who post to vixra.org, or who regularly check it because it is full of crazy. Based on a discussion I had with some friends over beers, I decided to write a program to generate titles and abstracts for vixra articles.&lt;/p&gt;
+&lt;h2&gt;Markov Chains&lt;/h2&gt;
+&lt;p&gt;The natural choice for such a project is Markov chains. These are pseudo-random processes where the next value depends on the previous value, but not any any other values. In this project, my Markov chain will generate a random word based off of the previous word that was generated. For example, if the current word is "magnetic" then there is a good chance the next word will be "field." This property allows a markov chain generator to make sentences that are vaguely readable while still being random nonsense. The fun part here is that I am training the markov chain generator on vixra articles (read: nonsense), so much of what gets generated is scarily believable as a vixra entry.&lt;/p&gt;
+&lt;h2&gt;Implementation.&lt;/h2&gt;
+&lt;p&gt;I used the excellent &lt;a href="https://pypi.python.org/pypi/PyMarkovChain/"&gt;pymarkovchain&lt;/a&gt; code to do all the hard work of creating the Markov chain, and the even more excellent &lt;a href="http://www.crummy.com/software/BeautifulSoup/bs4/doc/"&gt;beautifulsoup&lt;/a&gt; package to parse the titles and abstracts from html pages. As with any machine learning technique, markov chains perform best when they have lots of data so I fed the markov chain generator every vixra page from 2010 to the present. The source code I used is available as a gist &lt;a href="https://gist.github.com/kgullikson88/832a15a2205b4fa73559"&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The only tricky part of this was trying to get the titles and abstracts to match. Since I trained separate Markov chains to generate titles and abstracts, they tend to have nothing to do with each other. I attempt to get them to match by generating a bunch of of titles and abstracts, and finding the pair where the words in the title appear in the abstract as well.&lt;/p&gt;
+&lt;h2&gt;Generated VixRa Entries.&lt;/h2&gt;
+&lt;p&gt;Now, for your viewing pleasure, I present a few of the random articles that my code produced:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Evidence for Dark Matter as a Standing Sound Nebula&lt;/p&gt;
+&lt;p&gt;An equally valid interpretation of a force attracting the theory to cube root of physics." the stationary Current Free Lunch” satisfied only demonstrate an apple to 13.82 billion years (Lamda cold and MICROSTRUCTURE of the motion of the wave particle to reduce the corresponding matter is transported to what Time Dilation [1], along the claims that fitting galaxy rotation curves is presented: The Big Bang caused acceleration created negative and Relativistic Quantum Theories. The universe is consistent with the Moon.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The title makes (at least grammatical) sense, while the abstract is pretty much nonsense. That is generally the case, which I assume is because the abstracts are generally much longer. I do like the 13.82 billion year old apple though!&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Hypothesis for Dark Matter&lt;/p&gt;
+&lt;p&gt;Recent observations to obtain the rotation curves and nested parallel universes was proportional to that we don't know why the Accelerating Universe, flat rotation curves of three-body problem in agreement between dark matter and dark matter and Fermion particles. As a dual theorists. Hence, our real energy side of orbital period (which means a second. [6] This temperature dependent energy (ZPE) into gravitational force attracting the Super Universe’s parallel moving more than the annihilation of belt of spiral galaxies usually result of duality as a high center temperature dependent energy to be the TI field potential along the co-relation between dark matter in that at cosmological information inside.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Dark matter and dark energy are really common themes on ViXra (see below). I guess they love to come up with ideas about them since actual astronomers don't know very much about them either.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Asymmetric Dark Energy or Repulsive Gravity&lt;/p&gt;
+&lt;p&gt;Described as elaborated in the same intensity level, it seems to the angular-diameter distance. This theory of duality and astrophysics, weakly interacting quantum field to be described as real energy and magneton's beeline speed in neutrons absence of the effective mass is in the universe's expansion. Despite of mass of Physics, used first order to study of 3-rd body or by the maximum intensity, where the universe's expansion. A hypothesis for symmetry reasons the effective mass of relativistic mass it returned to r3/2.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The sad part is this title is almost believable as a real scientific article. One last thing: What are the most common words in ViXra titles?&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/Word_frequency.png" &gt;&lt;/p&gt;
+&lt;p&gt;As we saw from the generated entries, dark matter is a really common theme. One that I had to look up was Titius-Bode, which states that the semimajor axis (a) of planets follows the relation&lt;/p&gt;
+&lt;div class="math"&gt;$$ a = 0.4 + 0.3\cdot 2^m$$&lt;/div&gt;
+&lt;p&gt;for &lt;span class="math"&gt;\( m = -\infty, 0, 1, 2, ...\)&lt;/span&gt;. That is approximately true for our solar system, and even had a &lt;a href="http://arxiv.org/abs/1412.6230"&gt;real ArXiv paper&lt;/a&gt; on the subject recently claiming that it is true-ish enough to use for prioritizing exoplanet searches. However, it is basically just &lt;a href="https://en.wikipedia.org/wiki/Numerology"&gt;numerology&lt;/a&gt; so not given very much serious thought. Crackpots love things like numerology though, so it makes sense that Titius-Bode would make the top ten title phrases!&lt;/p&gt;
+&lt;script type="text/javascript"&gt;if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width &lt; 768) ? "left" : align;
+        indent = (screen.width &lt; 768) ? "0em" : indent;
+        linebreak = (screen.width &lt; 768) ? 'true' : linebreak;
+    }
+    
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = '//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+    mathjaxscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'AMS' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); ";
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+&lt;/script&gt;</summary><category term="Science"></category><category term="Machine Learning"></category><category term="web-scraping"></category></entry><entry><title>On Bayesian Model Comparison and Climate Change</title><link href="http://kgullikson88.github.io/blog/climate-change.html" rel="alternate"></link><updated>2015-07-06T05:00:00-05:00</updated><author><name>Kevin Gullikson</name></author><id>tag:kgullikson88.github.io,2015-07-06:blog/climate-change.html</id><summary type="html">&lt;h2&gt;Or: Is there really a pause in global warming?&lt;/h2&gt;
 &lt;p&gt;A common criticism made by climate change skeptics is that there has not been any warming in the last several years. They claim that since the CO&lt;span class="math"&gt;\(_2\)&lt;/span&gt; abundance is still increasing, the lack of increasing temperatures proves that CO&lt;span class="math"&gt;\(_2\)&lt;/span&gt; &lt;em&gt;cannot&lt;/em&gt; be driving the temperature change.&lt;/p&gt;
 &lt;p&gt;Let's take a look at the data. For this project, I will be using the &lt;a href="http://berkeleyearth.org/data/"&gt;Berkeley Earth compilation&lt;/a&gt; of global average surface temperatures and ocean temperatures. The data go back to 1880 and, unlike other compilations I have found, include an uncertainty in the temperature anomaly as well as just the value. The data from the &lt;a href="http://data.giss.nasa.gov/gistemp/"&gt;Goddard Institute for Space Studies&lt;/a&gt;, which is more commonly used but does not include uncertainties, is almost identical to the values I use.&lt;/p&gt;
 &lt;p&gt;Here is the last 15 years.&lt;/p&gt;
