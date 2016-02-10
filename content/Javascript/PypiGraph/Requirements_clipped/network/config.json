@@ -14,7 +14,7 @@
   },
   "legend": {
     "edgeLabel": "Requirements",
-    "colorLabel": "",
+    "colorLabel": "In-degree",
     "nodeLabel": "Package"
   },
   "features": {
