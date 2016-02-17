@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>PyPi Dependency Analysis &mdash; Adventures of the Datastronomer</title>
+  <meta name="author" content="Kevin Gullikson">
+
+
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+    <link href="http://kgullikson88.github.io/blog/favicon.png" rel="icon">
+
+  <link href="http://kgullikson88.github.io/blog/theme/css/main.css" media="screen, projection"
+        rel="stylesheet" type="text/css">
+
+  <link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic"
+        rel="stylesheet" type="text/css">
+  <link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic"
+        rel="stylesheet" type="text/css">
+</head>
+
+<body>
+  <header role="banner"><hgroup>
+  <h1><a href="http://kgullikson88.github.io/blog/">Adventures of the Datastronomer</a></h1>
+</hgroup></header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+</ul>
+
+
+
+<ul class="main-navigation">
+    <li >
+    <a href="http://kgullikson88.github.io/blog/category/bayesian-methods.html">Bayesian methods</a>
+    </li>
+    <li >
+    <a href="http://kgullikson88.github.io/blog/category/machine-learning.html">Machine learning</a>
+    </li>
+    <li >
+    <a href="http://kgullikson88.github.io/blog/category/misc.html">Misc</a>
+    </li>
+    <li >
+    <a href="http://kgullikson88.github.io/blog/category/silly.html">Silly</a>
+    </li>
+    <li class="active">
+    <a href="http://kgullikson88.github.io/blog/category/visualization.html">Visualization</a>
+    </li>
+</ul></nav>
+  <div id="main">
+    <div id="content">
+<div>
+  <article class="hentry" role="article">
+<header>
+      <h1 class="entry-title">PyPi Dependency Analysis</h1>
+    <p class="meta">
+<time datetime="2016-02-18T05:00:00-06:00" pubdate>Thu 18 February 2016</time>    </p>
+</header>
+
+  <div class="entry-content"><p>If you use the Python programming language, you have probably run the command</p>
+<div class="highlight"><pre>pip install <span class="o">[</span>package<span class="o">]</span>
+</pre></div>
+
+
+<p>at some point. What you may not know is the magic happening behind the scenes. The <code>pip</code> command
+is connecting to the <a href="https://pypi.python.org/pypi">Pypi server</a> and searching for the package you want. 
+Once it finds that package, it downloads and runs a special python file titled <code>setup.py</code>, which contains a 
+bunch of metadata for the package. </p>
+<p>Knowing this, I decided to see what I could learn from the metadata available in the <code>setup.py</code> file for 
+every package on the Pypi server. There are a few things that are conceivable:</p>
+<ul>
+<li>Parse all of the dependencies from every package. By dependencies I mean other python packages that the given package relies on.</li>
+<li>Parse the package description, and try to do something fun with it. Maybe I will write a <a href="http://kgullikson88.github.io/blog/markov-chain.html">Markov chain text generator</a> at some point to generate python package names and descriptions. Another more interesting thing would be to analyze the description with some natural language processing algorithm</li>
+<li>Tally up the version strings for each of the packages, and find weird ones/outliers.</li>
+</ul>
+<p>I might visit the other options in a later post, but here I will be looking at the dependencies. This post 
+focuses on a programming language, and will necessarily be more technical than the other ones. Nonetheless, I tried
+to make it accessible to everyone, and explain clearly what I am doing. If you don't care about the nitty gritty of 
+how I figured out the dependencies, skip to the "Dependency Analysis" section.</p>
+<h2>Parsing Package Dependencies</h2>
+<p>The first thing I needed to do was just figure out what the
+dependencies of a given package are. That turned out to be way harder than it has any right to be. The 
+command</p>
+<div class="highlight"><pre>pip show <span class="o">[</span>package<span class="o">]</span>
+</pre></div>
+
+
+<p>gives a bunch of metadata for the given package, including everything it requires to run, but <strong>it only 
+works if you have the package installed!</strong> I am not about to install every package on pypi on my or anyone 
+else's computer, so had to look for a more hacky way to do this. It turns out <a href="https://ogirardot.wordpress.com/2013/01/05/state-of-the-pythonpypi-dependency-graph/">Olivier Girardot</a> did a similar project 
+a few years back, so I took his code as a starting point. </p>
+<p>The first thing I did was download every package on pypi, and extract the <code>setup.py</code> file and any file or directory with the word 'requirement' in it.</p>
+<div class="highlight"><pre><span class="k">def</span> <span class="nf">extract_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">client</span><span class="o">=</span><span class="n">xmlrpclib</span><span class="o">.</span><span class="n">ServerProxy</span><span class="p">(</span><span class="s">&#39;http://pypi.python.org/pypi&#39;</span><span class="p">)):</span>
+    <span class="k">for</span> <span class="n">release</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">package_releases</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+        <span class="n">outdir</span> <span class="o">=</span> <span class="s">&#39;packages/{}-{}/&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">release</span><span class="p">)</span>
+        <span class="n">doc</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">release_urls</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">release</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">doc</span><span class="p">:</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">doc</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="s">&#39;python_version&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;source&#39;</span> <span class="ow">and</span> <span class="n">d</span><span class="p">[</span><span class="s">&#39;url&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;gz&#39;</span><span class="p">):</span>
+                    <span class="n">url</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s">&#39;url&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">url</span><span class="p">:</span>
+                <span class="n">req</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">req</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&quot;Could not download file {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">status_code</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c">#print(outdir)</span>
+                    <span class="n">ensure_dir</span><span class="p">(</span><span class="s">&#39;{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">outdir</span><span class="p">))</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;/tmp/temp_tar&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">tar_file</span><span class="p">:</span>
+                        <span class="n">tar_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;/tmp/temp_tar&#39;</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">tar_file</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="n">_extract_files</span><span class="p">(</span><span class="n">tar_file</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">outdir</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">packages</span><span class="p">:</span>
+    <span class="n">extract_package</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">client</span><span class="p">)</span>
+</pre></div>
+
+
+<p>The first step left me with a bunch of directories that contain all the metadata for every pypi package. Next, I used a slightly modified version of the <a href="https://github.com/landscapeio/requirements-detector">requirements-detector</a> package to parse out the requirements. The package does the following:</p>
+<ol>
+<li>Search the <code>setup.py</code> file for an <code>install_requires</code> keyword, and attempt to parse package names out of that.</li>
+<li>If step one fails, search any file with the word 'requirement' in it, and look for things that look like python requirements</li>
+<li>Failing <em>that</em>, search any file that ends with '.txt' in any directory that contains the word 'requirement' for stuff that looks like python requirements.</li>
+<li>Output the requirements found to a text file</li>
+</ol>
+<p>Of the <span class="math">\(\sim 74000\)</span> packages on pypi, I was able to parse requirements for 20522. The remaining packages probably do require other packages, but the <code>setup.py</code> file is written in such a way that it was difficult to parse. Leaving those out probably biases the result in some complex way, but I am sick of munging so let's move on to the fun part.</p>
+<h2>Dependency Analysis</h2>
+<p>Now that I have all of the dependencies for (many of) the packages on the pypi server, I want to see what I can learn. The first thing I do is make a network graph of dependencies (click on the image for an interactive version):</p>
+<p><a href="http://kgullikson88.github.io/blog/Javascript/PypiGraph/Requirements_clipped/network/index.html">
+  <img src="Images/PypiGraph.png" >
+</a></p>
+<p>The network graph visualizes how python packages depend on each other. Each point (or node, in graph-theory speak) represents a python package,
+and each line (or edge) represents that one of the packages depends on the other. This is actually a directed graph, in that it makes sense to say things like "astropy depends on numpy, but not the other way around".</p>
+<p>Comparing this network graph to the version that Olivier Girardot made a few years ago, we immediately see
+that the python ecosystem has grown tremendously and become much more connected. in fact, the network I show here
+is much smaller than the data I have, because I removed any package with <span class="math">\(&lt; 10\)</span> connections. The bulk of the network is
+centered on the <a href="http://docs.python-requests.org/en/master/"><code>requests</code></a> module, indicating the python is largely useful for interacting with the internet. </p>
+<p>The clump near the bottom of the graph is caused the <a href="http://zope.org/"><code>zope</code> framework</a>. While giving a short talk at a python meetup, I learned that <code>zope</code> was an early web framework. It is similar to the more modern and well-known <a href="https://www.djangoproject.com/"><code>django</code> library</a>.</p>
+<h2>Network Statistics</h2>
+<p>The graph is pretty and very fun to play with, but what can we actually learn from it? </p>
+<h3>Package Importance</h3>
+<p>First up: What are the most important packages? It turns out there is not a unique way to answer this question. The first way to answer this is with what is called "node centrality". This basically asks what nodes have the most connections. The PageRank algorithm, which is one of the ways Google ranks websites to decide what to show you, is related to node centrality. The next two figures show the top 10 nodes by degree (the number of connections they have) and by PageRank:</p>
+<p><img src="Figures/Connections.png"></p>
+<p><img src="Figures/PageRank.png"></p>
+<p>Both measures give more or less the same answers, and they agree well with intuition. The <code>requests</code> library is the most important node, followed by <code>django</code>. The <code>numpy</code> and <code>cython</code> packages are largely for scientific computing, another major component of the python ecosystem.</p>
+<p>We can also try to determine important packages with the concept of "betweenness centrality". The idea here is to find the shortest path between every two nodes in the network. The betweenness centrality of a node is the fraction of these shortest paths that pass through the node. A good example is the airport network: Lots of planes pass through major hubs on the way to their destination, so they have high betweeness centrality. Here is the top ten by this metric:</p>
+<p><img src="Figures/Betweenness.png"></p>
+<p>This way of measuring important packages gives very different packages. There are lots of packages relating to testing frameworks and documentation, which are not really run-time dependencies that I care about. This just goes to show that different ways to measure important packages can give very different answers! I favor the node centrality estimates for this network, since it gives answers that line up better with my intuition.</p>
+<h3>Development Communities</h3>
+<p>Alright we have a list of important packages, but can we go further and ask what distinct communities exist in python? This is much more difficult, and is related to the NP-complete <a href="https://en.wikipedia.org/wiki/Clique_problem">Clique Problem</a>. The general solution to these problems is very slow: in big-O notation it is <span class="math">\(O(a^n)\)</span> where <span class="math">\(a\)</span> is a constant set by the specific algorithm. With <span class="math">\(\sim 26000\)</span> nodes in my network, that is completely intractable. Luckily, a lot of people have been working on this kind of problem with much bigger data (facebook, Google, etc). It turns out there is a dendrogram-based approach that works well for this network. The algorithm is described in detail <a href="http://arxiv.org/abs/0803.0476">here</a>, and is implemented in the <a href="https://pypi.python.org/pypi/python-louvain/0.3"><code>community</code></a> code. Here's how it works:</p>
+<ol>
+<li>Start with all nodes in their own communities</li>
+<li>For each node, test if the "modularity" increases by putting it into the same community as one of its neighbors (one of the nodes it is connected to). If so, combine the two nodes into a community</li>
+<li>Continue until no more gain is found for any single nodes.</li>
+<li>Make a new network where each node is now the communities found in the above set.</li>
+<li>Repeat steps 1-4 many times, until the modularity no longer increases.</li>
+</ol>
+<p>We can visualize the network and the communities this algorithm finds with an adjacency matrix:</p>
+<p><img src="Figures/AdjacencyMatrix.png"></p>
+<p>In this figure, both the x- and y-axes are the nodes (packages). The intersection between nodes is colored with a black dot if there is an edge
+between the nodes. The communities that we found are the set of large squares going down the diagonal of the matrix. The bigger the square, the more packages exist in that community. The "darker" the square, the more completelly connected that community is (i.e. very dark communities indicate that every package in that community depends on almost every other package in the community).</p>
+<p>I have labeled the top ten biggest communities, and found the most important packages in the community with the PageRank algorithm. Here is what I found for each labeled community. Keep in mind that I don't use the majority of these packages, so I might be a little bit off when describing what the packages do!</p>
+<ol>
+<li>This community is centered on the <code>flask</code> and <code>bottle</code> packages. These are both web server frameworks, and provide an easy way to set up a web server. </li>
+<li>This community has a lot of roughly equally-important nodes, which include <code>redis</code>, <code>tornado</code>, and <code>pyzmq</code>. I'm not really sure what unifies these all - I know <code>tornado</code> and <code>pyzmq</code> are both required by ipython/jupyter notebooks, but those packages are not in this community.</li>
+<li>This is the pydata community, and the one I am most familiar with. It is dominated by <code>numpy</code>, with smaller contributions from <code>scipy</code>, <code>matplotlib</code>, and <code>pandas</code>. </li>
+<li>This community has lots of testing and documentation packages. </li>
+<li>This is by far dominated by the <code>django</code> package, a very powerful framework for generating dynamic websites.</li>
+<li>This community is dominated by <code>requests</code>, as well as a few other tools for web interface/scraping.</li>
+<li>This community is dominated by the <code>distribute</code> package, but really it is the zope community that I described above. This is the only community that was visually distinguishable in the network graph.</li>
+<li>I think this community is focused on static website development and configuration. There are strong showings from the <code>pyyamml</code> and <code>jinja2</code> packages.</li>
+<li>This community looks like it contains small but useful utilities: <code>argparse</code>, <code>decorator</code>, <code>pyparsing</code> have strong showings.</li>
+<li>This one has a pretty large variety of packages as far as I can tell. The most important package in this community is <code>sqlalchemy</code>, which is a python interface to SQL queries.</li>
+</ol>
+<h2>Degree Distribution</h2>
+<p>The last thing I will look at is a global property of the network: the distribution of how many edges there are for each node (how many packages each package depends on).</p>
+<p><img src="Figures/DegreeDistribution.png"></p>
+<p>This is a power-law distribution, indicating that there are a few packages that many many things depend on, but most packages only have a few others that depend on them. We could have guessed this shape from the node centrality measures, which also look like power laws. What does a power-law degree distribution tell us about the graph? A likely explanation is a "rich get richer" scenario: packages that already have lots of stuff that uses them show up high on google search results, and so new package developers use them too. For example, almost all scientists use the <code>matplotlib</code> plotting package, and so their code all requires matplotlib. A much smaller set of python programmers use, for example, the <code>bokeh</code> library for plotting. The reason is likely simply because matplotlib is the first google result for "python plotting". This interpretation is supported by the fact that the most important packages tend to be fairly old; they have had more time to accumulate a critical mass of users.</p>
+<h2>Downloads</h2>
+<p>The package dependency data is available as a csv file here:</p>
+<ul>
+<li><a href="Downloads/PypiDependencies/requirements.csv">dependency data</a></li>
+</ul>
+<p>The analysis was done with a series of jupyter notebooks, which you can download here:</p>
+<ul>
+<li><a href="Downloads/PypiDependencies/PyPi_Metadata.ipynb">Fetching pypi dependency data</a></li>
+<li><a href="Downloads/PypiDependencies/Parse_requirements.ipynb">Parsing requirements into csv file</a></li>
+<li><a href="Downloads/PypiDependencies/PyPiAnalyzer.ipynb">Network Analysis</a></li>
+</ul>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+    
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = '//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+    mathjaxscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'AMS' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); ";
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script></div>
+    <footer>
+<p class="meta">
+  <span class="byline author vcard">
+    Posted by <span class="fn">
+        Kevin Gullikson
+    </span>
+  </span>
+<time datetime="2016-02-18T05:00:00-06:00" pubdate>Thu 18 February 2016</time>  <span class="categories">
+    <a class='category' href='http://kgullikson88.github.io/blog/category/visualization.html'>Visualization</a>
+  </span>
+  <span class="categories">
+    <a class="category" href="http://kgullikson88.github.io/blog/tag/python.html">Python</a>,    <a class="category" href="http://kgullikson88.github.io/blog/tag/web-scraping.html">web-scraping</a>,    <a class="category" href="http://kgullikson88.github.io/blog/tag/graphs.html">graphs</a>  </span>
+</p><div class="sharing">
+</div>    </footer>
+  </article>
+
+</div>
+<aside class="sidebar">
+  <section>
+    <h1>Recent Posts</h1>
+    <ul id="recent_posts">
+      <li class="post">
+          <a href="http://kgullikson88.github.io/blog/pypi-analysis.html">PyPi Dependency Analysis</a>
+      </li>
+      <li class="post">
+          <a href="http://kgullikson88.github.io/blog/markov-chain.html">Markov Chain Text Generation</a>
+      </li>
+      <li class="post">
+          <a href="http://kgullikson88.github.io/blog/climate-change.html">On Bayesian Model Comparison and Climate Change</a>
+      </li>
+      <li class="post">
+          <a href="http://kgullikson88.github.io/blog/classification.html">Classification with Clouds!</a>
+      </li>
+      <li class="post">
+          <a href="http://kgullikson88.github.io/blog/first-post.html">First Post</a>
+      </li>
+    </ul>
+  </section>
+  <section>
+      
+    <h1>Categories</h1>
+    <ul id="recent_posts">
+        <li><a href="http://kgullikson88.github.io/blog/category/bayesian-methods.html">Bayesian Methods</a></li>
+        <li><a href="http://kgullikson88.github.io/blog/category/machine-learning.html">Machine Learning</a></li>
+        <li><a href="http://kgullikson88.github.io/blog/category/misc.html">misc</a></li>
+        <li><a href="http://kgullikson88.github.io/blog/category/silly.html">Silly</a></li>
+        <li><a href="http://kgullikson88.github.io/blog/category/visualization.html">Visualization</a></li>
+    </ul>
+  </section>
+ 
+
+  <section>
+  <h1>Tags</h1>
+    <a href="http://kgullikson88.github.io/blog/tag/model-comparison.html">Model Comparison</a>,    <a href="http://kgullikson88.github.io/blog/tag/weather.html">Weather</a>,    <a href="http://kgullikson88.github.io/blog/tag/machine-learning.html">Machine Learning</a>,    <a href="http://kgullikson88.github.io/blog/tag/science.html">Science</a>,    <a href="http://kgullikson88.github.io/blog/tag/political.html">Political</a>,    <a href="http://kgullikson88.github.io/blog/tag/classification.html">Classification</a>,    <a href="http://kgullikson88.github.io/blog/tag/graphs.html">graphs</a>,    <a href="http://kgullikson88.github.io/blog/tag/web-scraping.html">web-scraping</a>,    <a href="http://kgullikson88.github.io/blog/tag/python.html">Python</a>  </section>
+
+
+    <section>
+        <h1>Social</h1>
+        <ul>
+            <li><a href="https://www.facebook.com/kevin.gullikson" target="_blank">Facebook</a></li>
+            <li><a href="https://plus.google.com/u/0/+KevinGullikson" target="_blank">Google+</a></li>
+            <li><a href="http://www.linkedin.com/in/KevinGullikson" target="_blank">LinkedIn</a></li>
+            <li><a href="http://github.com/kgullikson88" target="_blank">Github</a></li>
+        </ul>
+    </section>
+    <section>
+        <h1>Blogroll</h1>
+        <ul>
+            <li><a href="http://www.as.utexas.edu/~kgulliks/index.html" target="_blank">My Academic Website</a></li>
+        </ul>
+    </section>
+
+</aside>    </div>
+  </div>
+  <footer role="contentinfo"><p>
+    Copyright &copy;  2015&ndash;2016  Kevin Gullikson &mdash;
+  <span class="credit">Powered by <a href="http://getpelican.com">Pelican</a></span>
+</p></footer>
+  <script src="http://kgullikson88.github.io/blog/theme/js/modernizr-2.0.js"></script>
+  <script src="http://kgullikson88.github.io/blog/theme/js/ender.js"></script>
+  <script src="http://kgullikson88.github.io/blog/theme/js/octopress.js" type="text/javascript"></script>
+</body>
+</html>
