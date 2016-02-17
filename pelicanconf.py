@@ -12,9 +12,9 @@ TIMEZONE = 'America/Chicago'
 
 DEFAULT_LANG = 'en'
 
-STATIC_PATHS = ['Images', 'Figures', 'Downloads', 'Javascript']
+STATIC_PATHS = ['Images', 'Figures', 'Downloads', 'Javascript', 'static']
 PAGE_EXCLUDES = ['Javascript']
-ARTICLE_EXLUDES = ['Javascript']
+ARTICLE_EXCLUDES = STATIC_PATHS
 
 # Theme and plugins
 THEME = 'pelican-octopress-theme/'

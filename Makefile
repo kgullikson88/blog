@@ -1,4 +1,4 @@
-PY?=python3
+PY?=python
 PELICAN?=pelican
 PELICANOPTS=
 
@@ -56,7 +56,7 @@ help:
 
 html:
 	$(PELICAN) $(INPUTDIR) -o $(OUTPUTDIR) -s $(CONFFILE) $(PELICANOPTS)
-	cp $(INPUTDIR)/Javascript/PypiGraph/Requirements_clipped/network/index.html $(OUTPUTDIR)/Javascript/PypiGraph/Requirements_clipped/network/index.html
+	#cp $(INPUTDIR)/Javascript/PypiGraph/Requirements_clipped/network/index.html $(OUTPUTDIR)/Javascript/PypiGraph/Requirements_clipped/network/index.html
 
 
 clean:
@@ -86,7 +86,7 @@ stopserver:
 
 publish:
 	$(PELICAN) $(INPUTDIR) -o $(OUTPUTDIR) -s $(PUBLISHCONF) $(PELICANOPTS)
-	cp $(INPUTDIR)/Javascript/PypiGraph/Requirements_clipped/network/index.html $(OUTPUTDIR)/Javascript/PypiGraph/Requirements_clipped/network/index.html
+	#cp $(INPUTDIR)/Javascript/PypiGraph/Requirements_clipped/network/index.html $(OUTPUTDIR)/Javascript/PypiGraph/Requirements_clipped/network/index.html
 
 ssh_upload: publish
 	scp -P $(SSH_PORT) -r $(OUTPUTDIR)/* $(SSH_USER)@$(SSH_HOST):$(SSH_TARGET_DIR)

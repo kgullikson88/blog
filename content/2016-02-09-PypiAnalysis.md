@@ -103,9 +103,9 @@ The network graph visualizes how python packages depend on each other. Each poin
 and each line (or edge) represents that one of the packages depends on the other. This is actually a directed graph, in that it makes sense to say things like "astropy depends on numpy, but not the other way around".
 
 Comparing this network graph to the version that Olivier Girardot made a few years ago, we immediately see
-that the python ecosystem has grown tremendously and become much more connected. in fact, the network I show here
+that the python ecosystem has grown tremendously and become much more connected. In fact, the network I show here
 is much smaller than the data I have, because I removed any package with $< 10$ connections. The bulk of the network is
-centered on the [`requests`](http://docs.python-requests.org/en/master/) module, indicating the python is largely useful for interacting with the internet. 
+centered on the [`requests`](http://docs.python-requests.org/en/master/) module, indicating that python is largely useful for interacting with the internet. 
 
 The clump near the bottom of the graph is caused the [`zope` framework](http://zope.org/). While giving a short talk at a python meetup, I learned that `zope` was an early web framework. It is similar to the more modern and well-known [`django` library](https://www.djangoproject.com/).
 
@@ -175,8 +175,8 @@ The package dependency data is available as a csv file here:
 
  - [dependency data](Downloads/PypiDependencies/requirements.csv)
 
-The analysis was done with a series of jupyter notebooks, which you can download here:
+The analysis was done with a series of jupyter notebooks, which you can view and download here:
 
-- [Fetching pypi dependency data](Downloads/PypiDependencies/PyPi_Metadata.ipynb)
-- [Parsing requirements into csv file](Downloads/PypiDependencies/Parse_requirements.ipynb)
-- [Network Analysis](Downloads/PypiDependencies/PyPiAnalyzer.ipynb)
+- [Fetching pypi dependency data](static/PyPi_Metadata.html)  ([raw notebook](Downloads/PypiDependencies/PyPi_Metadata.ipynb))
+- [Parsing requirements into csv file](static/Parse_requirements.html)  ([raw notebook](Downloads/PypiDependencies/Parse_requirements.ipynb))
+- [Network Analysis](static/PyPiAnalyzer.html)  ([raw notebook](Downloads/PypiDependencies/PyPiAnalyzer.ipynb))
