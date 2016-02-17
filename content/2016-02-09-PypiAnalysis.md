@@ -1,4 +1,4 @@
-Title: PyPi Dependency Analysis
+Title: Python Dependency Analysis
 date: 2016-02-18 05:00
 comments: true
 Category: Visualization
@@ -50,26 +50,34 @@ The first thing I did was download every package on pypi, and extract the `setup
 
 ```python
 def extract_package(name, client=xmlrpclib.ServerProxy('http://pypi.python.org/pypi')):
+    """
+    Save the setup.py and any file or directory with the word 'requirement'
+    in it.
+    """
+    # Try all releases for each package
     for release in client.package_releases(name):
         outdir = 'packages/{}-{}/'.format(name, release)
         doc = client.release_urls(name, release)
         if doc:
+            # Find the source .tar.gz tarball (the packages come in several formats)
             url = None
             for d in doc:
                 if d['python_version'] == 'source' and d['url'].endswith('gz'):
                     url = d['url']
             if url:
+                # Download the tarball
                 req = requests.get(url)
                 if req.status_code != 200:
                     print("Could not download file {}".format(req.status_code))
                 else:
-                    #print(outdir)
+                    # Save the tarball to disk, and extract the relevant files
                     ensure_dir('{}'.format(outdir))
                     with open('/tmp/temp_tar', 'w') as tar_file:
                         tar_file.write(req.content)
                     with open('/tmp/temp_tar', 'r') as tar_file:
                         return _extract_files(tar_file, name=outdir)
 
+# Loop over all pypi packages
 for package in packages:
     extract_package(package, client)
 ```
