@@ -4,7 +4,7 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>PyPi Dependency Analysis &mdash; Adventures of the Datastronomer</title>
+  <title>Python Dependency Analysis &mdash; Adventures of the Datastronomer</title>
   <meta name="author" content="Kevin Gullikson">
 
 
@@ -57,7 +57,7 @@
 <div>
   <article class="hentry" role="article">
 <header>
-      <h1 class="entry-title">PyPi Dependency Analysis</h1>
+      <h1 class="entry-title">Python Dependency Analysis</h1>
     <p class="meta">
 <time datetime="2016-02-18T05:00:00-06:00" pubdate>Thu 18 February 2016</time>    </p>
 </header>
@@ -96,26 +96,34 @@ else's computer, so had to look for a more hacky way to do this. It turns out <a
 a few years back, so I took his code as a starting point. </p>
 <p>The first thing I did was download every package on pypi, and extract the <code>setup.py</code> file and any file or directory with the word 'requirement' in it.</p>
 <div class="highlight"><pre><span class="k">def</span> <span class="nf">extract_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">client</span><span class="o">=</span><span class="n">xmlrpclib</span><span class="o">.</span><span class="n">ServerProxy</span><span class="p">(</span><span class="s">&#39;http://pypi.python.org/pypi&#39;</span><span class="p">)):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Save the setup.py and any file or directory with the word &#39;requirement&#39;</span>
+<span class="sd">    in it.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Try all releases for each package</span>
     <span class="k">for</span> <span class="n">release</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">package_releases</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
         <span class="n">outdir</span> <span class="o">=</span> <span class="s">&#39;packages/{}-{}/&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">release</span><span class="p">)</span>
         <span class="n">doc</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">release_urls</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">release</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">doc</span><span class="p">:</span>
+            <span class="c"># Find the source .tar.gz tarball (the packages come in several formats)</span>
             <span class="n">url</span> <span class="o">=</span> <span class="bp">None</span>
             <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">doc</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="s">&#39;python_version&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;source&#39;</span> <span class="ow">and</span> <span class="n">d</span><span class="p">[</span><span class="s">&#39;url&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;gz&#39;</span><span class="p">):</span>
                     <span class="n">url</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s">&#39;url&#39;</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">url</span><span class="p">:</span>
+                <span class="c"># Download the tarball</span>
                 <span class="n">req</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">req</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
                     <span class="k">print</span><span class="p">(</span><span class="s">&quot;Could not download file {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">status_code</span><span class="p">))</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="c">#print(outdir)</span>
+                    <span class="c"># Save the tarball to disk, and extract the relevant files</span>
                     <span class="n">ensure_dir</span><span class="p">(</span><span class="s">&#39;{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">outdir</span><span class="p">))</span>
                     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;/tmp/temp_tar&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">tar_file</span><span class="p">:</span>
                         <span class="n">tar_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
                     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;/tmp/temp_tar&#39;</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">tar_file</span><span class="p">:</span>
                         <span class="k">return</span> <span class="n">_extract_files</span><span class="p">(</span><span class="n">tar_file</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">outdir</span><span class="p">)</span>
 
+<span class="c"># Loop over all pypi packages</span>
 <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">packages</span><span class="p">:</span>
     <span class="n">extract_package</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">client</span><span class="p">)</span>
 </pre></div>
@@ -252,7 +260,7 @@ between the nodes. The communities that we found are the set of large squares go
     <h1>Recent Posts</h1>
     <ul id="recent_posts">
       <li class="post">
-          <a href="http://kgullikson88.github.io/blog/pypi-analysis.html">PyPi Dependency Analysis</a>
+          <a href="http://kgullikson88.github.io/blog/pypi-analysis.html">Python Dependency Analysis</a>
       </li>
       <li class="post">
           <a href="http://kgullikson88.github.io/blog/markov-chain.html">Markov Chain Text Generation</a>
@@ -283,7 +291,7 @@ between the nodes. The communities that we found are the set of large squares go
 
   <section>
   <h1>Tags</h1>
-    <a href="http://kgullikson88.github.io/blog/tag/science.html">Science</a>,    <a href="http://kgullikson88.github.io/blog/tag/classification.html">Classification</a>,    <a href="http://kgullikson88.github.io/blog/tag/model-comparison.html">Model Comparison</a>,    <a href="http://kgullikson88.github.io/blog/tag/machine-learning.html">Machine Learning</a>,    <a href="http://kgullikson88.github.io/blog/tag/python.html">Python</a>,    <a href="http://kgullikson88.github.io/blog/tag/graphs.html">graphs</a>,    <a href="http://kgullikson88.github.io/blog/tag/web-scraping.html">web-scraping</a>,    <a href="http://kgullikson88.github.io/blog/tag/weather.html">Weather</a>,    <a href="http://kgullikson88.github.io/blog/tag/political.html">Political</a>  </section>
+    <a href="http://kgullikson88.github.io/blog/tag/science.html">Science</a>,    <a href="http://kgullikson88.github.io/blog/tag/graphs.html">graphs</a>,    <a href="http://kgullikson88.github.io/blog/tag/political.html">Political</a>,    <a href="http://kgullikson88.github.io/blog/tag/python.html">Python</a>,    <a href="http://kgullikson88.github.io/blog/tag/model-comparison.html">Model Comparison</a>,    <a href="http://kgullikson88.github.io/blog/tag/web-scraping.html">web-scraping</a>,    <a href="http://kgullikson88.github.io/blog/tag/weather.html">Weather</a>,    <a href="http://kgullikson88.github.io/blog/tag/machine-learning.html">Machine Learning</a>,    <a href="http://kgullikson88.github.io/blog/tag/classification.html">Classification</a>  </section>
 
 
     <section>
