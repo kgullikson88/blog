@@ -1,8 +1,8 @@
 Title: PyPi Dependency Analysis
-date: 2016-02-12 05:00
+date: 2016-02-18 05:00
 comments: true
 Category: Visualization
-Tags: Python, web-scraping
+Tags: Python, web-scraping, graphs
 Slug: pypi-analysis
 Author: Kevin Gullikson
 
