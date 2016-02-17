@@ -74,7 +74,7 @@ for package in packages:
     extract_package(package, client)
 ```
 
-The first step left me with a bunch of directories that contain all the metadata for every pypi package (TODO: package and add this to Downloads...). Next, I used a slightly modified version of the [requirements-detector](https://github.com/landscapeio/requirements-detector) package to parse out the requirements. The package does the following:
+The first step left me with a bunch of directories that contain all the metadata for every pypi package. Next, I used a slightly modified version of the [requirements-detector](https://github.com/landscapeio/requirements-detector) package to parse out the requirements. The package does the following:
 
 1. Search the `setup.py` file for an `install_requires` keyword, and attempt to parse package names out of that.
 2. If step one fails, search any file with the word 'requirement' in it, and look for things that look like python requirements
@@ -160,3 +160,15 @@ The last thing I will look at is a global property of the network: the distribut
 
 This is a power-law distribution, indicating that there are a few packages that many many things depend on, but most packages only have a few others that depend on them. We could have guessed this shape from the node centrality measures, which also look like power laws. What does a power-law degree distribution tell us about the graph? A likely explanation is a "rich get richer" scenario: packages that already have lots of stuff that uses them show up high on google search results, and so new package developers use them too. For example, almost all scientists use the `matplotlib` plotting package, and so their code all requires matplotlib. A much smaller set of python programmers use, for example, the `bokeh` library for plotting. The reason is likely simply because matplotlib is the first google result for "python plotting". This interpretation is supported by the fact that the most important packages tend to be fairly old; they have had more time to accumulate a critical mass of users.
 
+
+## Downloads
+
+The package dependency data is available as a csv file here:
+
+ - [dependency data](Downloads/PypiDependencies/requirements.csv)
+
+The analysis was done with a series of jupyter notebooks, which you can download here:
+
+- [Fetching pypi dependency data](Downloads/PypiDependencies/PyPi_Metadata.ipynb)
+- [Parsing requirements into csv file](Downloads/PypiDependencies/Parse_requirements.ipynb)
+- [Network Analysis](Downloads/PypiDependencies/PyPiAnalyzer.ipynb)
