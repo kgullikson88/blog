@@ -82,9 +82,9 @@ a few years back, so I took his code as a starting point. &lt;/p&gt;
 &lt;p&gt;The network graph visualizes how python packages depend on each other. Each point (or node, in graph-theory speak) represents a python package,
 and each line (or edge) represents that one of the packages depends on the other. This is actually a directed graph, in that it makes sense to say things like "astropy depends on numpy, but not the other way around".&lt;/p&gt;
 &lt;p&gt;Comparing this network graph to the version that Olivier Girardot made a few years ago, we immediately see
-that the python ecosystem has grown tremendously and become much more connected. in fact, the network I show here
+that the python ecosystem has grown tremendously and become much more connected. In fact, the network I show here
 is much smaller than the data I have, because I removed any package with &lt;span class="math"&gt;\(&amp;lt; 10\)&lt;/span&gt; connections. The bulk of the network is
-centered on the &lt;a href="http://docs.python-requests.org/en/master/"&gt;&lt;code&gt;requests&lt;/code&gt;&lt;/a&gt; module, indicating the python is largely useful for interacting with the internet. &lt;/p&gt;
+centered on the &lt;a href="http://docs.python-requests.org/en/master/"&gt;&lt;code&gt;requests&lt;/code&gt;&lt;/a&gt; module, indicating that python is largely useful for interacting with the internet. &lt;/p&gt;
 &lt;p&gt;The clump near the bottom of the graph is caused the &lt;a href="http://zope.org/"&gt;&lt;code&gt;zope&lt;/code&gt; framework&lt;/a&gt;. While giving a short talk at a python meetup, I learned that &lt;code&gt;zope&lt;/code&gt; was an early web framework. It is similar to the more modern and well-known &lt;a href="https://www.djangoproject.com/"&gt;&lt;code&gt;django&lt;/code&gt; library&lt;/a&gt;.&lt;/p&gt;
 &lt;h2&gt;Network Statistics&lt;/h2&gt;
 &lt;p&gt;The graph is pretty and very fun to play with, but what can we actually learn from it? &lt;/p&gt;
@@ -131,11 +131,11 @@ between the nodes. The communities that we found are the set of large squares go
 &lt;ul&gt;
 &lt;li&gt;&lt;a href="Downloads/PypiDependencies/requirements.csv"&gt;dependency data&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;The analysis was done with a series of jupyter notebooks, which you can download here:&lt;/p&gt;
+&lt;p&gt;The analysis was done with a series of jupyter notebooks, which you can view and download here:&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;&lt;a href="Downloads/PypiDependencies/PyPi_Metadata.ipynb"&gt;Fetching pypi dependency data&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="Downloads/PypiDependencies/Parse_requirements.ipynb"&gt;Parsing requirements into csv file&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="Downloads/PypiDependencies/PyPiAnalyzer.ipynb"&gt;Network Analysis&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="static/PyPi_Metadata.html"&gt;Fetching pypi dependency data&lt;/a&gt;  (&lt;a href="Downloads/PypiDependencies/PyPi_Metadata.ipynb"&gt;raw notebook&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;a href="static/Parse_requirements.html"&gt;Parsing requirements into csv file&lt;/a&gt;  (&lt;a href="Downloads/PypiDependencies/Parse_requirements.ipynb"&gt;raw notebook&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;a href="static/PyPiAnalyzer.html"&gt;Network Analysis&lt;/a&gt;  (&lt;a href="Downloads/PypiDependencies/PyPiAnalyzer.ipynb"&gt;raw notebook&lt;/a&gt;)&lt;/li&gt;
 &lt;/ul&gt;
 &lt;script type="text/javascript"&gt;if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
     var align = "center",
