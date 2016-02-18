@@ -13,6 +13,7 @@ from pelicanconf import *
 SITEURL = 'http://kgullikson88.github.io/blog/'
 RELATIVE_URLS = False
 
+GOOGLE_ANALYTICS = 'UA-52197408-2'
 FEED_ALL_ATOM = 'feeds/all.atom.xml'
 CATEGORY_FEED_ATOM = 'feeds/%s.atom.xml'
 
