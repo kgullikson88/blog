@@ -1,0 +1,663 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Adventures of the Datastronomer</title><link>http://kgullikson88.github.io/blog/</link><description></description><atom:link href="http://kgullikson88.github.io/blog/feeds/all.rss.xml" rel="self"></atom:link><lastBuildDate>Thu, 18 Feb 2016 05:00:00 -0600</lastBuildDate><item><title>Python Dependency Analysis</title><link>http://kgullikson88.github.io/blog/pypi-analysis.html</link><description>&lt;p&gt;If you use the Python programming language, you have probably run the command&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;pip install &lt;span class="o"&gt;[&lt;/span&gt;package&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;at some point. What you may not know is the magic happening behind the scenes. The &lt;code&gt;pip&lt;/code&gt; command
+is connecting to the &lt;a href="https://pypi.python.org/pypi"&gt;Pypi server&lt;/a&gt; and searching for the package you want. 
+Once it finds that package, it downloads and runs a special python file titled &lt;code&gt;setup.py&lt;/code&gt;, which contains a 
+bunch of metadata for the package. &lt;/p&gt;
+&lt;p&gt;Knowing this, I decided to see what I could learn from the metadata available in the &lt;code&gt;setup.py&lt;/code&gt; file for 
+every package on the Pypi server. There are a few things that are conceivable:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Parse all of the dependencies from every package. By dependencies I mean other python packages that the given package relies on.&lt;/li&gt;
+&lt;li&gt;Parse the package description, and try to do something fun with it. Maybe I will write a &lt;a href="http://kgullikson88.github.io/blog/markov-chain.html"&gt;Markov chain text generator&lt;/a&gt; at some point to generate python package names and descriptions. Another more interesting thing would be to analyze the description with some natural language processing algorithm&lt;/li&gt;
+&lt;li&gt;Tally up the version strings for each of the packages, and find weird ones/outliers.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I might visit the other options in a later post, but here I will be looking at the dependencies. This post 
+focuses on a programming language, and will necessarily be more technical than the other ones. Nonetheless, I tried
+to make it accessible to everyone, and explain clearly what I am doing. If you don't care about the nitty gritty of 
+how I figured out the dependencies, skip to the "Dependency Analysis" section.&lt;/p&gt;
+&lt;h2&gt;Parsing Package Dependencies&lt;/h2&gt;
+&lt;p&gt;The first thing I needed to do was just figure out what the
+dependencies of a given package are. That turned out to be way harder than it has any right to be. The 
+command&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;pip show &lt;span class="o"&gt;[&lt;/span&gt;package&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;gives a bunch of metadata for the given package, including everything it requires to run, but &lt;strong&gt;it only 
+works if you have the package installed!&lt;/strong&gt; I am not about to install every package on pypi on my or anyone 
+else's computer, so had to look for a more hacky way to do this. It turns out &lt;a href="https://ogirardot.wordpress.com/2013/01/05/state-of-the-pythonpypi-dependency-graph/"&gt;Olivier Girardot&lt;/a&gt; did a similar project 
+a few years back, so I took his code as a starting point. &lt;/p&gt;
+&lt;p&gt;The first thing I did was download every package on pypi, and extract the &lt;code&gt;setup.py&lt;/code&gt; file and any file or directory with the word 'requirement' in it.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;extract_package&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;xmlrpclib&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ServerProxy&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;http://pypi.python.org/pypi&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)):&lt;/span&gt;
+    &lt;span class="sd"&gt;&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+&lt;span class="sd"&gt;    Save the setup.py and any file or directory with the word &amp;#39;requirement&amp;#39;&lt;/span&gt;
+&lt;span class="sd"&gt;    in it.&lt;/span&gt;
+&lt;span class="sd"&gt;    &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class="c"&gt;# Try all releases for each package&lt;/span&gt;
+    &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;release&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;package_releases&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+        &lt;span class="n"&gt;outdir&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;packages/{}-{}/&amp;#39;&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;format&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;release&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+        &lt;span class="n"&gt;doc&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;release_urls&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;release&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+        &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;doc&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="c"&gt;# Find the source .tar.gz tarball (the packages come in several formats)&lt;/span&gt;
+            &lt;span class="n"&gt;url&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="bp"&gt;None&lt;/span&gt;
+            &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;d&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;doc&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;d&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;python_version&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;source&amp;#39;&lt;/span&gt; &lt;span class="ow"&gt;and&lt;/span&gt; &lt;span class="n"&gt;d&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;url&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;endswith&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;gz&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+                    &lt;span class="n"&gt;url&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;d&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;url&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+            &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;url&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                &lt;span class="c"&gt;# Download the tarball&lt;/span&gt;
+                &lt;span class="n"&gt;req&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;requests&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;url&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+                &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;req&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;status_code&lt;/span&gt; &lt;span class="o"&gt;!=&lt;/span&gt; &lt;span class="mi"&gt;200&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                    &lt;span class="k"&gt;print&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;Could not download file {}&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;format&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;req&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;status_code&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+                &lt;span class="k"&gt;else&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                    &lt;span class="c"&gt;# Save the tarball to disk, and extract the relevant files&lt;/span&gt;
+                    &lt;span class="n"&gt;ensure_dir&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;{}&amp;#39;&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;format&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;outdir&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+                    &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="nb"&gt;open&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;/tmp/temp_tar&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;w&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="n"&gt;tar_file&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                        &lt;span class="n"&gt;tar_file&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;write&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;req&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;content&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+                    &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="nb"&gt;open&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;/tmp/temp_tar&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;r&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="n"&gt;tar_file&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;_extract_files&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;tar_file&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;outdir&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="c"&gt;# Loop over all pypi packages&lt;/span&gt;
+&lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;package&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;packages&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="n"&gt;extract_package&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;package&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The first step left me with a bunch of directories that contain all the metadata for every pypi package. Next, I used a slightly modified version of the &lt;a href="https://github.com/landscapeio/requirements-detector"&gt;requirements-detector&lt;/a&gt; package to parse out the requirements. The package does the following:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Search the &lt;code&gt;setup.py&lt;/code&gt; file for an &lt;code&gt;install_requires&lt;/code&gt; keyword, and attempt to parse package names out of that.&lt;/li&gt;
+&lt;li&gt;If step one fails, search any file with the word 'requirement' in it, and look for things that look like python requirements&lt;/li&gt;
+&lt;li&gt;Failing &lt;em&gt;that&lt;/em&gt;, search any file that ends with '.txt' in any directory that contains the word 'requirement' for stuff that looks like python requirements.&lt;/li&gt;
+&lt;li&gt;Output the requirements found to a text file&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Of the &lt;span class="math"&gt;\(\sim 74000\)&lt;/span&gt; packages on pypi, I was able to parse requirements for 20522. The remaining packages probably do require other packages, but the &lt;code&gt;setup.py&lt;/code&gt; file is written in such a way that it was difficult to parse. Leaving those out probably biases the result in some complex way, but I am sick of munging so let's move on to the fun part.&lt;/p&gt;
+&lt;h2&gt;Dependency Analysis&lt;/h2&gt;
+&lt;p&gt;Now that I have all of the dependencies for (many of) the packages on the pypi server, I want to see what I can learn. The first thing I do is make a network graph of dependencies (click on the image for an interactive version):&lt;/p&gt;
+&lt;p&gt;&lt;a href="http://kgullikson88.github.io/blog/Javascript/PypiGraph/Requirements_clipped/network/index.html"&gt;
+  &lt;img src="Images/PypiGraph.png" &gt;
+&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;The network graph visualizes how python packages depend on each other. Each point (or node, in graph-theory speak) represents a python package,
+and each line (or edge) represents that one of the packages depends on the other. This is actually a directed graph, in that it makes sense to say things like "astropy depends on numpy, but not the other way around".&lt;/p&gt;
+&lt;p&gt;Comparing this network graph to the version that Olivier Girardot made a few years ago, we immediately see
+that the python ecosystem has grown tremendously and become much more connected. In fact, the network I show here
+is much smaller than the data I have, because I removed any package with &lt;span class="math"&gt;\(&amp;lt; 10\)&lt;/span&gt; connections. The bulk of the network is
+centered on the &lt;a href="http://docs.python-requests.org/en/master/"&gt;&lt;code&gt;requests&lt;/code&gt;&lt;/a&gt; module, indicating that python is largely useful for interacting with the internet. &lt;/p&gt;
+&lt;p&gt;The clump near the bottom of the graph is caused the &lt;a href="http://zope.org/"&gt;&lt;code&gt;zope&lt;/code&gt; framework&lt;/a&gt;. While giving a short talk at a python meetup, I learned that &lt;code&gt;zope&lt;/code&gt; was an early web framework. It is similar to the more modern and well-known &lt;a href="https://www.djangoproject.com/"&gt;&lt;code&gt;django&lt;/code&gt; library&lt;/a&gt;.&lt;/p&gt;
+&lt;h2&gt;Network Statistics&lt;/h2&gt;
+&lt;p&gt;The graph is pretty and very fun to play with, but what can we actually learn from it? &lt;/p&gt;
+&lt;h3&gt;Package Importance&lt;/h3&gt;
+&lt;p&gt;First up: What are the most important packages? It turns out there is not a unique way to answer this question. The first way to answer this is with what is called "node centrality". This basically asks what nodes have the most connections. The PageRank algorithm, which is one of the ways Google ranks websites to decide what to show you, is related to node centrality. The next two figures show the top 10 nodes by degree (the number of connections they have) and by PageRank:&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/Connections.png"&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/PageRank.png"&gt;&lt;/p&gt;
+&lt;p&gt;Both measures give more or less the same answers, and they agree well with intuition. The &lt;code&gt;requests&lt;/code&gt; library is the most important node, followed by &lt;code&gt;django&lt;/code&gt;. The &lt;code&gt;numpy&lt;/code&gt; and &lt;code&gt;cython&lt;/code&gt; packages are largely for scientific computing, another major component of the python ecosystem.&lt;/p&gt;
+&lt;p&gt;We can also try to determine important packages with the concept of "betweenness centrality". The idea here is to find the shortest path between every two nodes in the network. The betweenness centrality of a node is the fraction of these shortest paths that pass through the node. A good example is the airport network: Lots of planes pass through major hubs on the way to their destination, so they have high betweeness centrality. Here is the top ten by this metric:&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/Betweenness.png"&gt;&lt;/p&gt;
+&lt;p&gt;This way of measuring important packages gives very different packages. There are lots of packages relating to testing frameworks and documentation, which are not really run-time dependencies that I care about. This just goes to show that different ways to measure important packages can give very different answers! I favor the node centrality estimates for this network, since it gives answers that line up better with my intuition.&lt;/p&gt;
+&lt;h3&gt;Development Communities&lt;/h3&gt;
+&lt;p&gt;Alright we have a list of important packages, but can we go further and ask what distinct communities exist in python? This is much more difficult, and is related to the NP-complete &lt;a href="https://en.wikipedia.org/wiki/Clique_problem"&gt;Clique Problem&lt;/a&gt;. The general solution to these problems is very slow: in big-O notation it is &lt;span class="math"&gt;\(O(a^n)\)&lt;/span&gt; where &lt;span class="math"&gt;\(a\)&lt;/span&gt; is a constant set by the specific algorithm. With &lt;span class="math"&gt;\(\sim 26000\)&lt;/span&gt; nodes in my network, that is completely intractable. Luckily, a lot of people have been working on this kind of problem with much bigger data (facebook, Google, etc). It turns out there is a dendrogram-based approach that works well for this network. The algorithm is described in detail &lt;a href="http://arxiv.org/abs/0803.0476"&gt;here&lt;/a&gt;, and is implemented in the &lt;a href="https://pypi.python.org/pypi/python-louvain/0.3"&gt;&lt;code&gt;community&lt;/code&gt;&lt;/a&gt; code. Here's how it works:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Start with all nodes in their own communities&lt;/li&gt;
+&lt;li&gt;For each node, test if the "modularity" increases by putting it into the same community as one of its neighbors (one of the nodes it is connected to). If so, combine the two nodes into a community&lt;/li&gt;
+&lt;li&gt;Continue until no more gain is found for any single nodes.&lt;/li&gt;
+&lt;li&gt;Make a new network where each node is now the communities found in the above set.&lt;/li&gt;
+&lt;li&gt;Repeat steps 1-4 many times, until the modularity no longer increases.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;We can visualize the network and the communities this algorithm finds with an adjacency matrix:&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/AdjacencyMatrix.png"&gt;&lt;/p&gt;
+&lt;p&gt;In this figure, both the x- and y-axes are the nodes (packages). The intersection between nodes is colored with a black dot if there is an edge
+between the nodes. The communities that we found are the set of large squares going down the diagonal of the matrix. The bigger the square, the more packages exist in that community. The "darker" the square, the more completelly connected that community is (i.e. very dark communities indicate that every package in that community depends on almost every other package in the community).&lt;/p&gt;
+&lt;p&gt;I have labeled the top ten biggest communities, and found the most important packages in the community with the PageRank algorithm. Here is what I found for each labeled community. Keep in mind that I don't use the majority of these packages, so I might be a little bit off when describing what the packages do!&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;This community is centered on the &lt;code&gt;flask&lt;/code&gt; and &lt;code&gt;bottle&lt;/code&gt; packages. These are both web server frameworks, and provide an easy way to set up a web server. &lt;/li&gt;
+&lt;li&gt;This community has a lot of roughly equally-important nodes, which include &lt;code&gt;redis&lt;/code&gt;, &lt;code&gt;tornado&lt;/code&gt;, and &lt;code&gt;pyzmq&lt;/code&gt;. I'm not really sure what unifies these all - I know &lt;code&gt;tornado&lt;/code&gt; and &lt;code&gt;pyzmq&lt;/code&gt; are both required by ipython/jupyter notebooks, but those packages are not in this community.&lt;/li&gt;
+&lt;li&gt;This is the pydata community, and the one I am most familiar with. It is dominated by &lt;code&gt;numpy&lt;/code&gt;, with smaller contributions from &lt;code&gt;scipy&lt;/code&gt;, &lt;code&gt;matplotlib&lt;/code&gt;, and &lt;code&gt;pandas&lt;/code&gt;. &lt;/li&gt;
+&lt;li&gt;This community has lots of testing and documentation packages. &lt;/li&gt;
+&lt;li&gt;This is by far dominated by the &lt;code&gt;django&lt;/code&gt; package, a very powerful framework for generating dynamic websites.&lt;/li&gt;
+&lt;li&gt;This community is dominated by &lt;code&gt;requests&lt;/code&gt;, as well as a few other tools for web interface/scraping.&lt;/li&gt;
+&lt;li&gt;This community is dominated by the &lt;code&gt;distribute&lt;/code&gt; package, but really it is the zope community that I described above. This is the only community that was visually distinguishable in the network graph.&lt;/li&gt;
+&lt;li&gt;I think this community is focused on static website development and configuration. There are strong showings from the &lt;code&gt;pyyamml&lt;/code&gt; and &lt;code&gt;jinja2&lt;/code&gt; packages.&lt;/li&gt;
+&lt;li&gt;This community looks like it contains small but useful utilities: &lt;code&gt;argparse&lt;/code&gt;, &lt;code&gt;decorator&lt;/code&gt;, &lt;code&gt;pyparsing&lt;/code&gt; have strong showings.&lt;/li&gt;
+&lt;li&gt;This one has a pretty large variety of packages as far as I can tell. The most important package in this community is &lt;code&gt;sqlalchemy&lt;/code&gt;, which is a python interface to SQL queries.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2&gt;Degree Distribution&lt;/h2&gt;
+&lt;p&gt;The last thing I will look at is a global property of the network: the distribution of how many edges there are for each node (how many packages each package depends on).&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/DegreeDistribution.png"&gt;&lt;/p&gt;
+&lt;p&gt;This is a power-law distribution, indicating that there are a few packages that many many things depend on, but most packages only have a few others that depend on them. We could have guessed this shape from the node centrality measures, which also look like power laws. What does a power-law degree distribution tell us about the graph? A likely explanation is a "rich get richer" scenario: packages that already have lots of stuff that uses them show up high on google search results, and so new package developers use them too. For example, almost all scientists use the &lt;code&gt;matplotlib&lt;/code&gt; plotting package, and so their code all requires matplotlib. A much smaller set of python programmers use, for example, the &lt;code&gt;bokeh&lt;/code&gt; library for plotting. The reason is likely simply because matplotlib is the first google result for "python plotting". This interpretation is supported by the fact that the most important packages tend to be fairly old; they have had more time to accumulate a critical mass of users.&lt;/p&gt;
+&lt;h2&gt;Downloads&lt;/h2&gt;
+&lt;p&gt;The package dependency data is available as a csv file here:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="Downloads/PypiDependencies/requirements.csv"&gt;dependency data&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The analysis was done with a series of jupyter notebooks, which you can view and download here:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="static/PyPi_Metadata.html"&gt;Fetching pypi dependency data&lt;/a&gt;  (&lt;a href="Downloads/PypiDependencies/PyPi_Metadata.ipynb"&gt;raw notebook&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;a href="static/Parse_requirements.html"&gt;Parsing requirements into csv file&lt;/a&gt;  (&lt;a href="Downloads/PypiDependencies/Parse_requirements.ipynb"&gt;raw notebook&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;a href="static/PyPiAnalyzer.html"&gt;Network Analysis&lt;/a&gt;  (&lt;a href="Downloads/PypiDependencies/PyPiAnalyzer.ipynb"&gt;raw notebook&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;script type="text/javascript"&gt;if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width &lt; 768) ? "left" : align;
+        indent = (screen.width &lt; 768) ? "0em" : indent;
+        linebreak = (screen.width &lt; 768) ? 'true' : linebreak;
+    }
+    
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = '//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+    mathjaxscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'AMS' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); ";
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+&lt;/script&gt;</description><dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Kevin Gullikson</dc:creator><pubDate>Thu, 18 Feb 2016 05:00:00 -0600</pubDate><guid>tag:kgullikson88.github.io,2016-02-18:blog/pypi-analysis.html</guid><category>Python</category><category>web-scraping</category><category>graphs</category></item><item><title>Markov Chain Text Generation</title><link>http://kgullikson88.github.io/blog/markov-chain.html</link><description>&lt;p&gt;Most physical scientists are probably aware of the &lt;a href="www.arxiv.org"&gt;ArXiv&lt;/a&gt; website, which hosts pre-prints of scientific papers. The site is not peer-reviewed, but does have some mysterious process for weeding out the crazies. In most cases, legitimate scientific articles get posted without issue. There are occasionally delays if something in your paper raises a flag, but very rarely if ever does real research get "rejected". 
+Crackpot "research", on the other hand, is very effectively weeded out. Naturally, there is a &lt;a href="www.vixra.org"&gt;competing website&lt;/a&gt; that has no screening process and so all of the really out-there stuff gets posted there. I don't know of any real scientists who post to vixra.org, or who regularly check it because it is full of crazy. Based on a discussion I had with some friends over beers, I decided to write a program to generate titles and abstracts for vixra articles.&lt;/p&gt;
+&lt;h2&gt;Markov Chains&lt;/h2&gt;
+&lt;p&gt;The natural choice for such a project is Markov chains. These are pseudo-random processes where the next value depends on the previous value, but not any any other values. In this project, my Markov chain will generate a random word based off of the previous word that was generated. For example, if the current word is "magnetic" then there is a good chance the next word will be "field." This property allows a markov chain generator to make sentences that are vaguely readable while still being random nonsense. The fun part here is that I am training the markov chain generator on vixra articles (read: nonsense), so much of what gets generated is scarily believable as a vixra entry.&lt;/p&gt;
+&lt;h2&gt;Implementation.&lt;/h2&gt;
+&lt;p&gt;I used the excellent &lt;a href="https://pypi.python.org/pypi/PyMarkovChain/"&gt;pymarkovchain&lt;/a&gt; code to do all the hard work of creating the Markov chain, and the even more excellent &lt;a href="http://www.crummy.com/software/BeautifulSoup/bs4/doc/"&gt;beautifulsoup&lt;/a&gt; package to parse the titles and abstracts from html pages. As with any machine learning technique, markov chains perform best when they have lots of data so I fed the markov chain generator every vixra page from 2010 to the present. The source code I used is available as a gist &lt;a href="https://gist.github.com/kgullikson88/832a15a2205b4fa73559"&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The only tricky part of this was trying to get the titles and abstracts to match. Since I trained separate Markov chains to generate titles and abstracts, they tend to have nothing to do with each other. I attempt to get them to match by generating a bunch of of titles and abstracts, and finding the pair where the words in the title appear in the abstract as well.&lt;/p&gt;
+&lt;h2&gt;Generated VixRa Entries.&lt;/h2&gt;
+&lt;p&gt;Now, for your viewing pleasure, I present a few of the random articles that my code produced:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Evidence for Dark Matter as a Standing Sound Nebula&lt;/p&gt;
+&lt;p&gt;An equally valid interpretation of a force attracting the theory to cube root of physics." the stationary Current Free Lunch” satisfied only demonstrate an apple to 13.82 billion years (Lamda cold and MICROSTRUCTURE of the motion of the wave particle to reduce the corresponding matter is transported to what Time Dilation [1], along the claims that fitting galaxy rotation curves is presented: The Big Bang caused acceleration created negative and Relativistic Quantum Theories. The universe is consistent with the Moon.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The title makes (at least grammatical) sense, while the abstract is pretty much nonsense. That is generally the case, which I assume is because the abstracts are generally much longer. I do like the 13.82 billion year old apple though!&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Hypothesis for Dark Matter&lt;/p&gt;
+&lt;p&gt;Recent observations to obtain the rotation curves and nested parallel universes was proportional to that we don't know why the Accelerating Universe, flat rotation curves of three-body problem in agreement between dark matter and dark matter and Fermion particles. As a dual theorists. Hence, our real energy side of orbital period (which means a second. [6] This temperature dependent energy (ZPE) into gravitational force attracting the Super Universe’s parallel moving more than the annihilation of belt of spiral galaxies usually result of duality as a high center temperature dependent energy to be the TI field potential along the co-relation between dark matter in that at cosmological information inside.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Dark matter and dark energy are really common themes on ViXra (see below). I guess they love to come up with ideas about them since actual astronomers don't know very much about them either.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Asymmetric Dark Energy or Repulsive Gravity&lt;/p&gt;
+&lt;p&gt;Described as elaborated in the same intensity level, it seems to the angular-diameter distance. This theory of duality and astrophysics, weakly interacting quantum field to be described as real energy and magneton's beeline speed in neutrons absence of the effective mass is in the universe's expansion. Despite of mass of Physics, used first order to study of 3-rd body or by the maximum intensity, where the universe's expansion. A hypothesis for symmetry reasons the effective mass of relativistic mass it returned to r3/2.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The sad part is this title is almost believable as a real scientific article. One last thing: What are the most common words in ViXra titles?&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/Word_frequency.png" &gt;&lt;/p&gt;
+&lt;p&gt;As we saw from the generated entries, dark matter is a really common theme. One that I had to look up was Titius-Bode, which states that the semimajor axis (a) of planets follows the relation&lt;/p&gt;
+&lt;div class="math"&gt;$$ a = 0.4 + 0.3\cdot 2^m$$&lt;/div&gt;
+&lt;p&gt;for &lt;span class="math"&gt;\( m = -\infty, 0, 1, 2, ...\)&lt;/span&gt;. That is approximately true for our solar system, and even had a &lt;a href="http://arxiv.org/abs/1412.6230"&gt;real ArXiv paper&lt;/a&gt; on the subject recently claiming that it is true-ish enough to use for prioritizing exoplanet searches. However, it is basically just &lt;a href="https://en.wikipedia.org/wiki/Numerology"&gt;numerology&lt;/a&gt; so not given very much serious thought. Crackpots love things like numerology though, so it makes sense that Titius-Bode would make the top ten title phrases!&lt;/p&gt;
+&lt;script type="text/javascript"&gt;if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width &lt; 768) ? "left" : align;
+        indent = (screen.width &lt; 768) ? "0em" : indent;
+        linebreak = (screen.width &lt; 768) ? 'true' : linebreak;
+    }
+    
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = '//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+    mathjaxscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'AMS' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); ";
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+&lt;/script&gt;</description><dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Kevin Gullikson</dc:creator><pubDate>Sun, 26 Jul 2015 05:00:00 -0500</pubDate><guid>tag:kgullikson88.github.io,2015-07-26:blog/markov-chain.html</guid><category>Science</category><category>Machine Learning</category><category>web-scraping</category></item><item><title>On Bayesian Model Comparison and Climate Change</title><link>http://kgullikson88.github.io/blog/climate-change.html</link><description>&lt;h2&gt;Or: Is there really a pause in global warming?&lt;/h2&gt;
+&lt;p&gt;A common criticism made by climate change skeptics is that there has not been any warming in the last several years. They claim that since the CO&lt;span class="math"&gt;\(_2\)&lt;/span&gt; abundance is still increasing, the lack of increasing temperatures proves that CO&lt;span class="math"&gt;\(_2\)&lt;/span&gt; &lt;em&gt;cannot&lt;/em&gt; be driving the temperature change.&lt;/p&gt;
+&lt;p&gt;Let's take a look at the data. For this project, I will be using the &lt;a href="http://berkeleyearth.org/data/"&gt;Berkeley Earth compilation&lt;/a&gt; of global average surface temperatures and ocean temperatures. The data go back to 1880 and, unlike other compilations I have found, include an uncertainty in the temperature anomaly as well as just the value. The data from the &lt;a href="http://data.giss.nasa.gov/gistemp/"&gt;Goddard Institute for Space Studies&lt;/a&gt;, which is more commonly used but does not include uncertainties, is almost identical to the values I use.&lt;/p&gt;
+&lt;p&gt;Here is the last 15 years.&lt;/p&gt;
+&lt;style type="text/css"&gt;
+  .centeredImage
+    {
+    text-align:center;
+    margin-top:0px;
+    margin-bottom:0px;
+    padding:0px;
+    }
+&lt;/style&gt;
+
+&lt;p class="centeredImage"&gt;&lt;img src=Figures/Anomaly_Recent.png&gt;&lt;/p&gt;
+
+&lt;p&gt;Indeed, there is really not much warming, and it certainly appears to be constant. But only looking at the last 15 years is silly! Here is the data since 1880, which is as far back as the temperature estimates go. In the full data, I am showing the uncertainty in the temperature anomaly in each year with a colored band. Basically, any temperature anomaly that falls within the band is consistent with the measurements we have.&lt;/p&gt;
+&lt;p class="centeredImage"&gt;&lt;img src=Figures/Anomaly_Full.png&gt;&lt;/p&gt;
+
+&lt;p&gt;This data shows a few things really clearly.&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;The global average temperatures have &lt;em&gt;definitely&lt;/em&gt; increased since 1900 or so.&lt;/li&gt;
+&lt;li&gt;The values are high correlated. What I mean by that is that temperatures in a given year are related to temperatures in previous years. The most obvious example of that is the plateau from about 1940-1970, which was &lt;a href="http://www.newscientist.com/article/dn11639-climate-myths-the-cooling-after-1940-shows-co2-does-not-cause-warming.html#.VZlUi63InK4"&gt;likely caused&lt;/a&gt; by increased aerosols from industrial activity and volcano eruptions.&lt;/li&gt;
+&lt;li&gt;The apparent turnover at recent times is dubious, precisely because of the correlated temperatures.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;The rest of this post will focus on leveraging some heavy statistical machinery on the last point to answer the following question:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt; "Does the data support the hypothesis that temperatures have stopped increasing in the last 1-2 decades?" &lt;/strong&gt;&lt;/p&gt;
+&lt;h1&gt;Bayesian Model Selection&lt;/h1&gt;
+&lt;p&gt;If you don't want to get into too much math, just skip to "The Models" now. If you want some details on bayesian model selection, then read on. The statistical machinery I will use here is bayesian model selection. It centers on Bayes' equation:&lt;/p&gt;
+&lt;div class="math"&gt;$$
+P(\theta|D, M) = \frac{P(D|\theta, M) P(\theta|M)}{P(D|M)}
+$$&lt;/div&gt;
+&lt;p&gt;In words, Bayes' equation says that the probability of a set of model parameters (&lt;span class="math"&gt;\(\theta\)&lt;/span&gt;), given the data we have (D) and the model we choose (M), is equal to the probability of the data given the parameters and the model, times the probability of the parameters, and divided by the probability of the data under the model. The individual terms in Bayes' equation are:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt; Posterior Probability Function: &lt;span class="math"&gt;\(P(\theta|D, M)\)&lt;/span&gt; &lt;/li&gt;
+  &lt;li&gt; Likelihood Function: &lt;span class="math"&gt;\(P(D|\theta, M)\)&lt;/span&gt; &lt;/li&gt;
+  &lt;li&gt; Prior Probability: &lt;span class="math"&gt;\(P(\theta|M)\)&lt;/span&gt; &lt;/li&gt;
+  &lt;li&gt; Bayesian Evidence: &lt;span class="math"&gt;\(P(D|M)\)&lt;/span&gt; &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The likelihood function is a measure of how far away the value predicted by the model is from the data. Model parameters that predict the value far from what it actually is have low probability while parameters that predict values close to the data have high probability. A typical function for this is the gaussian likelihood that compares each data point (&lt;span class="math"&gt;\(x_i, y_i, \sigma_i\)&lt;/span&gt;) to what the model predicts:&lt;/p&gt;
+&lt;div class="math"&gt;$$
+P(D|\theta, M) = \prod_i \frac{1}{\sqrt{2\pi\sigma_i^2}} e^{-0.5(y_i - M(x_i, \theta))^2 / \sigma_i^2}
+$$&lt;/div&gt;
+&lt;p&gt;The prior probability function uses information we already have to adjust the probability of the given model parameters. I could do whole posts about the prior function, and other people have, but for this project I will exclusively use flat, uninformative priors.&lt;/p&gt;
+&lt;p&gt;In many applications where we only care about the best parameter values, the bayesian evidence is completely ignored since it is a constant for a given dataset and model, and is difficult to calculate. However, it is very important for choosing which model best describes the data so I will focus on it a bit more. Here is the evidence in its full glory:&lt;/p&gt;
+&lt;div class="math"&gt;$$
+P(D|M) = \int P(D|\theta, M)P(\theta|M)d^N\theta
+$$&lt;/div&gt;
+&lt;p&gt;Basically, the bayesian evidence is a weighted sum of the likelihood function over the entire possible parameter space. The nice thing is that it mathematically implements &lt;a href="https://en.wikipedia.org/wiki/Occam's_razor"&gt;Occam's razor&lt;/a&gt; since models with more parameters but equal predictive capability will have a larger parameter space, which means a lot more space with low likelihood, and so the evidence decreases. However, adding parameters that significantly improve the predictive capability of the model will &lt;em&gt;increase&lt;/em&gt; the evidence even though the parameter space increases. This is exactly why bayesian evidence is used to determine which model best describes the data, and is why I will be using it here. &lt;/p&gt;
+&lt;h1&gt;The Models&lt;/h1&gt;
+&lt;p&gt;I will try out five different models for the data and compare the bayesian evidence for each.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;A constant model with one parameter (&lt;span class="math"&gt;\(\Delta T_0\)&lt;/span&gt;).&lt;/li&gt;
+&lt;li&gt;A fifth-order polynomial given by &lt;span class="math"&gt;\(\Delta T = c_0 + c_1t + c_2t^2 + c_3t^3 + c_4t^4 + c_5t^5\)&lt;/span&gt; with parameters &lt;span class="math"&gt;\(\theta_{M_2} = c_0, c_1, c_2, c_3, c_4, c_5\)&lt;/span&gt;&lt;/li&gt;
+&lt;li&gt;An exponential growth model given by &lt;span class="math"&gt;\(\Delta T = \Delta T_0 + e^{f(t-t_0)}\)&lt;/span&gt; with parameters &lt;span class="math"&gt;\(\theta_{M3} = \Delta T_0, f, t_0\)&lt;/span&gt;&lt;/li&gt;
+&lt;li&gt;An exponential growth model with a stopping time at which &lt;span class="math"&gt;\(\Delta T\)&lt;/span&gt; becomes constant. It has parameters &lt;span class="math"&gt;\(\theta_{M4} = \Delta T_0, f, t_0, t_{stop}\)&lt;/span&gt;&lt;/li&gt;
+&lt;li&gt;A correlated noise model. This one is very different from the other models in that it assumes the temperature anomaly is 0 at all times, and that the variation we see is just because of the correlated noise. I accomplish this using &lt;a href="https://en.wikipedia.org/wiki/Gaussian_process"&gt;gaussian processes&lt;/a&gt;, and using the excellent &lt;a href="https://github.com/dfm/george"&gt;george&lt;/a&gt; code. These are a complicated beast and I don't want to spend too much time talking about them; just suffice it to say that they model the noise properties in a nice way. There are two parameters for this: the characteristic scale of the data (&lt;span class="math"&gt;\(\tau\)&lt;/span&gt;) and the noise amplitude (&lt;span class="math"&gt;\(A\)&lt;/span&gt;).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The first two models are there mostly for demonstration purposes, as we will see below. The exponential model comes from looking at the data and recognizing that it looks like a very noisy exponential growth. The last two are different models that assume that either the global temperatures were rising but are not anymore, or that the temperature changes we have seen are merely a result of noise. &lt;/p&gt;
+&lt;p&gt;The evidence calculation is very computationally difficult for most algorithms, but I will be using the &lt;a href="http://arxiv.org/abs/0809.3437"&gt;MultiNest algorithm&lt;/a&gt; that is designed specifically for bayesian evidence calculation. There is a nice Python wrapper to the algorithm &lt;a href="https://github.com/JohannesBuchner/PyMultiNest"&gt;here&lt;/a&gt;. For any interested parties, I have a &lt;a href="https://github.com/kgullikson88/General/blob/a0803368154b18e4e051e35b77b1a2eb41e51dc1/Fitters.py#L947"&gt;wrapper&lt;/a&gt; to &lt;em&gt;that&lt;/em&gt; that makes this whole model comparison thing easier and a bit more "pythonic". I did all of this analysis in a ipython notebook &lt;a href="https://github.com/kgullikson88/Ipython_Notebooks/blob/master/Climate_Data_multinest.ipynb"&gt;here&lt;/a&gt;, and you can see how I use my wrapper there.&lt;/p&gt;
+&lt;h1&gt;The Fits and Bayesian Evidence&lt;/h1&gt;
+&lt;p&gt;Here is a visual representation of the fits. The data is in blue, and I have removed the uncertainties for clarity. Check back above to remind yourself how big the errors are though! The red lines are 100 samples from the posterior probability function. Remember, the posterior probability function gives us what parameters are most compatible with the data so the spread in red lines tells you something about the range of reasonable parameters. &lt;/p&gt;
+&lt;style type="text/css"&gt;
+.floated_img
+{
+    float: left;
+}
+.section {
+  width: 50%;
+  height: 50%;
+  border: solid 1px #000;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+}
+.section img {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin: auto;
+  max-height: 90%;
+  max-width: 90%;
+}
+&lt;/style&gt;
+
+&lt;table width="100%" border="0" cellspacing="0" cellpadding="0"&gt;
+  &lt;tr&gt;
+    &lt;td&gt;&lt;img src="Figures/Constant.png" width= "100%"  border="0"&gt;&lt;/td&gt;
+    &lt;td&gt;&lt;img src="Figures/Polynomial.png" width= "100%"  border="0"&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;&lt;img src="Figures/ExpFit.png" width= "100%"  border="0"&gt;&lt;/td&gt;
+    &lt;td&gt;&lt;img src="Figures/ExpFit_Stop.png" width= "100%"  border="0"&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+    &lt;td&gt;&lt;img src="Figures/GaussianProcess.png" width= "100%"  border="0"&gt;&lt;/td&gt;
+&lt;/table&gt;
+
+&lt;p&gt;The constant model is very obviously bad and was chosen to be so to demonstrate how bayesian evidence works. The polynomial fit reproduces the data much better, but so does the exponential fit that has 3 fewer parameters. &lt;/p&gt;
+&lt;p&gt;Let's take a look at the bayesian evidence for each of the three first models. Since the multinest algorithm numerically calculates the evidence, it has some uncertainty that I also quote. Also note that the values quoted here are actually &lt;em&gt;&lt;span class="math"&gt;\(log(evidence)\)&lt;/span&gt;&lt;/em&gt; rather than just the evidence (that makes it computationally more stable).&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Constant model evidence: &lt;span class="math"&gt;\(34.11 \pm 0.02\)&lt;/span&gt;&lt;/li&gt;
+&lt;li&gt;Polynomial model evidence: &lt;span class="math"&gt;\(55.01 \pm 0.01\)&lt;/span&gt;&lt;/li&gt;
+&lt;li&gt;Exponential model evidence: &lt;span class="math"&gt;\(101.7 \pm 0.1\)&lt;/span&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;So the evidence lines up very well with both the visual quality of the fits and Occam's razor: The constant model has only one parameter, but very poor predictive power. The polynomial model has high predictive power, but a very large parameter space. The exponential growth model has the best of both worlds, and has the highest evidence. &lt;/p&gt;
+&lt;p&gt;So now that we know that the bayesian evidence gives results that line up with intuition, what does it say about the final models I have tested (exponential growth that has recently stopped and correlated noise)? The evidence for those models are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Exponential model with GW stop evidence: &lt;span class="math"&gt;\(100.76 \pm 0.06\)&lt;/span&gt;&lt;/li&gt;
+&lt;li&gt;Correlated Noise model: &lt;span class="math"&gt;\(77.24 \pm 0.03\)&lt;/span&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Now, the actual values are not as important as their &lt;em&gt;ratio&lt;/em&gt;, so lets take a look at the ratio of each model to every other model in the table below. I will convert to actual evidence instead of log(evidence) so that we can really compare how much the data favors one model over the other. Small values indicate that the row model is favored over column models, while large values indicate that the column model is favored over the row model (e.g. the polynomial model is favored over the constant model because the value in the polynomial row and the constant column is very small). &lt;/p&gt;
+&lt;style type="text/css"&gt;
+.tg  {border-collapse:collapse;border-spacing:0;}
+.tg td{font-family:Arial, sans-serif;font-size:14px;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;}
+.tg th{font-family:Arial, sans-serif;font-size:14px;font-weight:normal;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:keep-all;}
+@media screen and (max-width: 767px) {.tg {width: auto !important;}.tg col {width: auto !important;}.tg-wrap {overflow-x: auto;-webkit-overflow-scrolling: touch;}}&lt;/style&gt;
+
+&lt;div class="tg-wrap"&gt;&lt;table class="tg"&gt;
+  &lt;col width="120"&gt;
+  &lt;col width="120"&gt;
+  &lt;col width="120"&gt;
+  &lt;col width="120"&gt;
+  &lt;col width="150"&gt;
+  &lt;col width="150"&gt;
+  &lt;tr&gt;
+    &lt;th class="tg-031e"&gt;&lt;/th&gt;
+    &lt;th class="tg-031e"&gt;Constant&lt;/th&gt;
+    &lt;th class="tg-031e"&gt;Polynomial&lt;/th&gt;
+    &lt;th class="tg-031e"&gt;Exponential&lt;/th&gt;
+    &lt;th class="tg-031e"&gt;Exponential-Stop&lt;/th&gt;
+    &lt;th class="tg-031e"&gt;Correlated Noise&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class="tg-031e"&gt;Constant&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;1&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class="tg-031e"&gt;Polynomial&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;span class="math"&gt;\(8 \times 10^{-10}\)&lt;/span&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;1&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class="tg-031e"&gt;Exponential&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;span class="math"&gt;\(4.5 \times 10^{-30}\)&lt;/span&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;span class="math"&gt;\(5 \times 10^{-21}\)&lt;/span&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;1&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class="tg-031e"&gt;Exponential-Stop&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;span class="math"&gt;\(10^{-29}\)&lt;/span&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;span class="math"&gt;\(10^{-20}\)&lt;/span&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;span class="math"&gt;\(2.5 \pm 0.3\)&lt;/span&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;1&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class="tg-031e"&gt;Correlated Noise&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;span class="math"&gt;\(10^{-19}\)&lt;/span&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;span class="math"&gt;\(2 \times 10^{-10}\)&lt;/span&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;span class="math"&gt;\(4 \times 10^{10} \)&lt;/span&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;&lt;span class="math"&gt;\(10^{10} \)&lt;/span&gt;&lt;/td&gt;
+    &lt;td class="tg-031e"&gt;1&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;&lt;/div&gt;
+
+&lt;p&gt;The constant and polynomial models are terrible. The correlated noise model has a very low evidence as well; that is because the noise model is really flexible and can fit pretty much anything. The data supports the hypothesis of an exponential model by many orders of magnitude over anything else I've tested. The exponential and exponential-stop models are very comparable; the data favors the simpler model by a factor of &lt;span class="math"&gt;\(\sim 2.5\)&lt;/span&gt;, but that is not really enough of a difference to reject either model. What I can say is:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;"The data strongly favor a model where global temperatures are rising exponentially, and do not favor a model where temperatures have stopped warming."&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;There is one final thing to look at: what year does the data suggest global warming stopped under that model? Here is a histogram of samples from the posterior probability function for that parameter:&lt;/p&gt;
+&lt;p class="centeredImage"&gt;&lt;img src="Figures/GW_Stoptime.png"&gt;&lt;/p&gt;
+
+&lt;p&gt;The model prefers very recent years, which means most of the predicted temperature anomalies are identical to the simple exponential model. In fact, many of the samples have the warming trend stopping &lt;em&gt;in the future&lt;/em&gt;, where &lt;strong&gt;all&lt;/strong&gt; of the model-predicted temperatures are the same as in the simpler model. If the warming trend had truly stopped, this model would have been able to pick when the trend stopped to within a few years. The fact that the posterior probability function is roughly flat for the last decade, coupled with the fact that the bayesian evidence does not favor the stopping model, tells me that it is a poor model for the data. &lt;/p&gt;
+&lt;p&gt;Please stop saying that global warming has stopped, and feel free to send this to anyone who thinks it has!&lt;/p&gt;
+&lt;script type="text/javascript"&gt;if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width &lt; 768) ? "left" : align;
+        indent = (screen.width &lt; 768) ? "0em" : indent;
+        linebreak = (screen.width &lt; 768) ? 'true' : linebreak;
+    }
+    
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = '//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+    mathjaxscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'AMS' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); ";
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+&lt;/script&gt;</description><dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Kevin Gullikson</dc:creator><pubDate>Mon, 06 Jul 2015 05:00:00 -0500</pubDate><guid>tag:kgullikson88.github.io,2015-07-06:blog/climate-change.html</guid><category>Model Comparison</category><category>Political</category></item><item><title>Classification with Clouds!</title><link>http://kgullikson88.github.io/blog/classification.html</link><description>&lt;p&gt;One of the main branches of machine learning is classification, where you put data points in two or more groups based on whatever information you have. In this post, I will be using classification for something I have experienced much more than I would like: night-time cloud cover over McDonald Observatory. I am doing this both to learn about the various algorithms available for classification problems, and to prepare some data for a later blog post quantifying observer luck at McDonald Observatory. &lt;/p&gt;
+&lt;p&gt;Now, let's get to it! What data do we have? Well, the observatory has a &lt;a href="http://www.weather.as.utexas.edu"&gt;weather archive&lt;/a&gt; that has quite a bit of information on either 1- or 5-minute intervals. For this project, I will be using the basic weather information, which includes the temperature, pressure, humidity, dew point, and dust counts, as well as the cloud sensor data. Wait, if we have a cloud sensor, why do I need to do any kind of classification you ask? Well, there are long stretches of missing data with the cloud sensor that I want to fill in using the basic data. &lt;/p&gt;
+&lt;p&gt;Before we go on, a quick primer on how the cloud sensor works. What the sensor is actually doing is measuring both the "sky temperature" and the ambient temperature. The sky temperature is measured in the mid-infrared, and I imagine is being fit more or less to a blackbody curve. Without clouds, this temperature will be very cold. However, clouds will reflect some of the mid-infrared radiation coming from the Earth itself, and will cause the cloud sensor to measure a warmer sky temperature. The ambient temperature is measured in some much simpler way, since it is just getting the temperature wherever the sensor is physically located. So, a large difference between the sky and ambient temperatures indicates that the sky is clear, while a smaller difference means the sky is cloudy. The suggested values from the &lt;a href="http://weather.as.utexas.edu/weather_graph/Cloudy.html"&gt;weather site&lt;/a&gt; are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;span class="math"&gt;\(\Delta T &amp;lt; -54\)&lt;/span&gt;: Clear&lt;/li&gt;
+&lt;li&gt;&lt;span class="math"&gt;\(-54 &amp;lt; \Delta T &amp;lt; -18\)&lt;/span&gt;: Partly cloudy&lt;/li&gt;
+&lt;li&gt;&lt;span class="math"&gt;\(\Delta T &amp;gt; -18\)&lt;/span&gt;: Very cloudy&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;So now I have the three classes to use in classification: Clear, partly cloudy, and very cloudy. Let's take a look at the data. For brevity, I will not show every python command that I used to do this analysis; if you want, the ipython notebook with a bit less explanation but all of the code is available &lt;a href="Downloads/CloudCover_Estimation.ipynb"&gt;here&lt;/a&gt;. The first thing I do is read in the data files using &lt;a href="http://pandas.pydata.org/"&gt;pandas&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;cloud_data&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;pd&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;read_csv&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;data/clouds.dat&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;na_values&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;+-.----E+--&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;parse_dates&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;Date&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;]})&lt;/span&gt;
+&lt;span class="n"&gt;basic_data&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;pd&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;read_csv&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;data/basic_weather.dat&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;na_values&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;+-.----E+--&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;parse_dates&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;Date&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;]})&lt;/span&gt;
+&lt;span class="n"&gt;basic_data&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;index&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;basic_data&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;Date&lt;/span&gt;
+&lt;span class="n"&gt;cloud_data&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;index&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;cloud_data&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;Date&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The first two lines are reading in the actual data, while the second two are setting the index to be a datetime object instead of just an integer. Now, the basic data has a good amount of missing data, but it is generally short enough timespans that we can fill in the missing data through interpolation or re-calculation. The dew point is missing much more often than anything else, but &lt;a href="http://iridl.ldeo.columbia.edu/dochelp/QA/Basic/dewpoint.html"&gt;is easily calculable&lt;/a&gt; from the temperature, pressure, and relative humidity. I just make a new column with the calculated dew point with the following code:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;T&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;basic_data&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;base-TEMP_AVG&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="mf"&gt;32.0&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="mf"&gt;5.0&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="mf"&gt;9.0&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="mi"&gt;273&lt;/span&gt;
+&lt;span class="n"&gt;Es&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exp&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;5423&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mf"&gt;1.0&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="mf"&gt;273.&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="mf"&gt;1.0&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;T&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;span class="n"&gt;Td&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mf"&gt;1.&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="mf"&gt;273.&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mf"&gt;1.&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="mf"&gt;5423.&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;log&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;basic_data&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;base-R.H._AVG&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;Es&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="mf"&gt;100.&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;&lt;span class="o"&gt;**-&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;
+&lt;span class="n"&gt;basic_data&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;DEWPT_calculated&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;Td&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="mf"&gt;273.&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mf"&gt;9.&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="mf"&gt;5.&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="mi"&gt;32&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The first and last lines are conversions from Fahrenheit to Kelvin and back, while the middle two lines are doing the actual dew point calculation. I am not quite done with the basic data because it still has a few times that are missing more than just the dew point. Here is where I use the datetime index for the first time, and use the built-in pandas interpolate function to do a linear interpolation in time:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;basic_data&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;interpolate&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;method&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;time&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;inplace&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;True&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Now that I have filled in the missing basic weather data, I move on to the cloud sensor data. This is the hard part, because it has day- to week-long time spans where the sensor was not working for some reason. Anyone who has looked up knows that the number of clouds in the sky can change on much faster timescales than that, so interpolating is not going to be a very good way to go. The first thing I do is add the class labels to the data.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;get_cloudiness&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;Tdiff&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;Tdiff&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="mi"&gt;54&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;
+    &lt;span class="k"&gt;elif&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="mi"&gt;18&lt;/span&gt; &lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Tdiff&lt;/span&gt; &lt;span class="o"&gt;&amp;gt;=&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="mi"&gt;54&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="mi"&gt;1&lt;/span&gt;
+    &lt;span class="k"&gt;else&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="mi"&gt;2&lt;/span&gt;
+&lt;span class="n"&gt;cloud_data&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;cloudiness&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;cloud_data&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;cloud-Sky-ambient&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;map&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;get_cloudiness&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h2&gt;Exploratory Data Analysis&lt;/h2&gt;
+&lt;p&gt;Now that I have the data loaded up, let's take a look at it. The first thing to do is plot the temperature, relative humidity, and cloud cover class from the cloud sensor data:
+&lt;img src='Figures/Cloud_Data.png' width="1000"&gt;&lt;/p&gt;
+&lt;p&gt;The heaviest cloud cover tends to happen at the extremes of the plot: high temperature, high humidity. That makes sense: higher temperatures mean more water vaper &lt;em&gt;can&lt;/em&gt; be in the air, and higher humidity means more water vapor &lt;em&gt;is&lt;/em&gt; in the air. Both will make clouds.&lt;/p&gt;
+&lt;p&gt;Now, I will combine the basic data with the cloud data to get a much more in-depth view. This is again a single line of python code. Since both have datetime values as their index, the merge is done based on the time of measurement.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;merged&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;pd&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;merge&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;basic_data&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;cloud_data&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;how&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;left&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Now, I did a little bit of research and apparently clouds are more likely to form if the temperature and humidity are highly variable throughout the atmosphere &lt;a href="http://onlinelibrary.wiley.com/doi/10.1256/qj.02.190/pdf"&gt;1&lt;/a&gt;. I don't have access to spatial variability, but I do have temporal variability of those quantities so I will make a couple more columns with the time derivative of the relative humidity and temperature:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;merged&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;RH_Change&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;merged&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;base-R.H._AVG&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;pct_change&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;periods&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;limit&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;merged&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;T_Change&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;merged&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;base-TEMP_AVG&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;pct_change&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;periods&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;limit&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;I will also combine the dust sensor data and use the log since it has a very large dynamic range&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;merged&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;Dust&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;log10&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;merged&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;base-DUST1_CRNT&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="n"&gt;merged&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;base-DUST2_CRNT&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Now, I use &lt;a href="http://stanford.edu/~mwaskom/software/seaborn/"&gt;seaborn&lt;/a&gt; to plot the relationship of every variable to each other at once. For those with a sharp eye, I am only considering night-time data (when the 'daylight' row is less than 1 million).&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;sns&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;pairplot&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;merged&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;loc&lt;/span&gt;&lt;span class="p"&gt;[(&lt;/span&gt;&lt;span class="n"&gt;merged&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;cloud-Daylight&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt; &lt;span class="mf"&gt;1e6&lt;/span&gt;&lt;span class="p"&gt;)],&lt;/span&gt; &lt;span class="n"&gt;dropna&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;True&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;hue&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;cloudiness&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;vars&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;base-TEMP_AVG&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;base-R.H._AVG&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;base-PRESS_AVG&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;DEWPT_calculated&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;RH_Change&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;T_Change&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;Dust&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;img src='Figures/All_Vars.png'&gt;&lt;/p&gt;
+&lt;p&gt;There is a &lt;em&gt;lot&lt;/em&gt; of information in this plot. The red points are where it is very cloudy, and the blue points are clear. Let's step through a bit by variable and try to summarize.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Lower temperatures and higher humidities correlate with cloudier weather. That is pretty expected.&lt;/li&gt;
+&lt;li&gt;Pressure: There doesn't seem to be much here. It does appear that more extreme pressures (either low or high) correlate with clearer nights. I'm not sure why that would be.&lt;/li&gt;
+&lt;li&gt;Dew point: This is basically the same information as humidity and pressure, but does seem to have somewhat cleaner boundaries. &lt;/li&gt;
+&lt;li&gt;Change in humidity and temperature: This doesn't really show much information. It sort of looks like the higher cloud levels occur when the humidity/temperature are changing more slowly. However, this is just an effect of there being more clear nights that cloudy nights. The standard deviation of the different groups is basically the same.&lt;/li&gt;
+&lt;li&gt;Dust level: This is the sum of the small (&lt;span class="math"&gt;\(0.3 \mu m\)&lt;/span&gt;) and large (&lt;span class="math"&gt;\(1 \mu m\)&lt;/span&gt;) dust grains. It also doesn't seem to show much, but I know that clouds need dust in the air to form so I will keep it as a variable.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Classification Algorithms&lt;/h2&gt;
+&lt;p&gt;To estimate cloud cover from the variables listed in the plot above, I will try a few different algorithms. To compare the different algorithms, I will split up the data into a "training set" and a "testing set". I will train each algorithm on the training set, and then see how well it predicts the right answer on the testing set. This is just cross-validation. Now, which algorithms will I use?&lt;/p&gt;
+&lt;h3&gt;&lt;a href="http://en.wikipedia.org/wiki/Logistic_regression#Logistic_function.2C_odds.2C_odds_ratio.2C_and_logit"&gt;Logistic regression&lt;/a&gt;:&lt;/h3&gt;
+&lt;p&gt;Logistic regression is easiest to understand when there are only two classes instead of the three we have here. Then, it is similar to polynomial regression in that you are fitting an equation of the form&lt;/p&gt;
+&lt;p&gt;&lt;span class="math"&gt;\( t = c_0 + c_1x_1 + c_2x_2 + ...\)&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;to the data (x), but then taking the extra step of turning t into a probability of being in 'class 1' with the logistic function:&lt;/p&gt;
+&lt;p&gt;&lt;span class="math"&gt;\( f(t) = \frac{1}{1+e^{-t}}\)&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;Thus, you fit the parameters &lt;span class="math"&gt;\(c_0, c_1, ...\)&lt;/span&gt;, and evaluate the parameters by comparing the value of f(t) to what class the data point is in. The optimized parameters then have the properties:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;points in class 1: f(t) &amp;gt; 0.5 (or some threshold you can play with if you want)&lt;/li&gt;
+&lt;li&gt;points in class 0: f(t) &amp;lt; 0.5&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;To use the logistic function to predict the class, you just plug your data points in to get t, and then use the logistic function to get the probability of being in class 1.&lt;/p&gt;
+&lt;p&gt;How do we use this for the problem here, where there are three classes? The simplest way is the 'one vs. all' classifier. Basically, you fit three sets of parameters &lt;span class="math"&gt;\(c_0, c_1, ...\)&lt;/span&gt; and each set corresponds to one of the classes. In our setup, you would do normal logistic regression for:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;clear vs. partly cloudy &lt;em&gt;or&lt;/em&gt; very cloudy&lt;/li&gt;
+&lt;li&gt;partly cloudy vs. clear &lt;em&gt;or&lt;/em&gt; very cloudy&lt;/li&gt;
+&lt;li&gt;very cloudy vs. clear &lt;em&gt;or&lt;/em&gt; partly cloudy.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Then when you want to predict which class a new data point has (how cloudy is it), you find the probabilities of each class and take the one with the highest probability as the predicted class.&lt;/p&gt;
+&lt;p&gt;I will be using the &lt;a href="http://scikit-learn.org/stable/modules/linear_model.html#logistic-regression"&gt;LogisticRegression&lt;/a&gt; class in &lt;a href="http://scikit-learn.org/stable/"&gt;scikit-learn&lt;/a&gt; to do the actual work of fitting the data. This class uses a regularization parameter (C), which is basically just a way to keep the parameters &lt;span class="math"&gt;\(c_0, c_1, ...\)&lt;/span&gt; small and prevents over-fitting. The value to use for regularization depends on the specific data you are using, and so we again use cross-validation to choose it. In this case, there is a &lt;a href="http://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegressionCV.html"&gt;LogisticRegressionCV&lt;/a&gt; class that does all of that for you so I don't even need to do much of anything special.&lt;/p&gt;
+&lt;h3&gt;&lt;a href="http://scikit-learn.org/dev/modules/tree.html"&gt;Decision Tree&lt;/a&gt;&lt;/h3&gt;
+&lt;p&gt;A decision tree is basically just a flowchart that leads to the classification labels (in our case clear, partly cloudy, and very cloudy). Or, in programmer-speak, it is a long chain of if-then-else decision rules. An example assessing how likely a person was to have survived the Titanic is shown below.&lt;/p&gt;
+&lt;p&gt;&lt;img src="Images/CART_tree_titanic_survivors.png" &gt;&lt;/p&gt;
+&lt;p&gt;Fitting a decision tree from data is done by splitting each input variable (temperature, pressure, etc) at some value. The number of branches and numerical value of the splits are adjusted until each "leaf" only contains points from one class.&lt;/p&gt;
+&lt;p&gt;The chief advantage of a decision tree is that it is very easy to interpret. For example, it is really easy to see from the above tree that the best way to survive the Titanic was to either be a woman or a young boy without many siblings. For this reason, decision trees are popular machine learning tools to provide actionable results.&lt;/p&gt;
+&lt;p&gt;I will again be using scikit-learn for the &lt;a href="http://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html"&gt;decision tree classifier&lt;/a&gt;. The full decision tree has far too many levels to display in a blog post, but here is a version with only three levels.&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/Decision_Tree.png"&gt;&lt;/p&gt;
+&lt;p&gt;We immediately see that the tree picks out a couple things (which we already know):&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Clear nights occur when the temperature is high and the dew points are low (third leaf)&lt;/li&gt;
+&lt;li&gt;Cloudy nights occur when the temperature is low and the dew point is high (sixth leaf)&lt;/li&gt;
+&lt;li&gt;The most important variables are temperature and dew point (since nothing else appears in this truncated tree).&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;When I run the full tree, it ends up with 31 levels. The importance of each variable is shown below:&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/Decision_Tree_Importance.png" width="500"&gt;&lt;/p&gt;
+&lt;p&gt;Temperature and dew point are still the most important variables, but now the dust count and pressure show up as important too. The time derivative of temperature and relative humidity are not very useful predictors, so we will not use them for any of the final predictors. The overall cross-validation accuracy even increases a bit when we drop these variables!&lt;/p&gt;
+&lt;h3&gt;&lt;a href="http://scikit-learn.org/dev/modules/ensemble.html#forests-of-randomized-trees"&gt;Random Forest Classifier&lt;/a&gt;&lt;/h3&gt;
+&lt;p&gt;A random forest is an improvement upon a decision tree. Basically, a bunch of decision trees are all trained at once with random subsamples of the data. To make a prediction, the data is sent through each tree and the total probability is calculated from the ensemble. As you add more trees to the "forest," the result gets more accurate but is also more prone to over-fitting and becomes more computationally expensive. &lt;/p&gt;
+&lt;p&gt;We will cross-validate to find the best number of trees. There is no built-in class for easily cross-validating the number of trees in the forest, but scikit-learn does provide a very useful cross-validation module. The key code to do the cross-validation is shown here:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="c"&gt;# Cross-validate a random forest classifier with 3-1000 trees&lt;/span&gt;
+&lt;span class="n"&gt;N&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;logspace&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mf"&gt;0.5&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;25&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;dtype&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;int&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;scores_arr&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;[]&lt;/span&gt;
+&lt;span class="n"&gt;err_arr&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;[]&lt;/span&gt;
+&lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="nb"&gt;enumerate&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;N&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="n"&gt;clf&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;RandomForestClassifier&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;n_estimators&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;n_jobs&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="n"&gt;scores&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;cross_validation&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;cross_val_score&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;clf&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;X_train&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;y_train&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;cv&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="n"&gt;scores_arr&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;append&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;mean&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;scores&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+    &lt;span class="n"&gt;err_arr&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;append&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;std&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;scores&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The cross_val_score function takes the classifier and the data, and does 3 independent cross-validation trials for each number of trees. I then save the average and standard deviation of the scores and plot them:&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/RandomForest_CV.png"&gt;&lt;/p&gt;
+&lt;p&gt;So the accuracy increases with the number of trees, but begins leveling off after about 100 trees. For the final random forest classifier, I will use 100 trees.&lt;/p&gt;
+&lt;h3&gt;&lt;a href="http://scikit-learn.org/dev/modules/neighbors.html#nearest-neighbors-classification"&gt;K-nearest neighbors&lt;/a&gt;&lt;/h3&gt;
+&lt;p&gt;The K-nearest neighbors algorithm is pretty easy to understand: to classify a new data point, you just take several of the points with known labels closest to it, and do a majority vote. If most of the points near the data point are cloudy, for instance, then the new data point will be classified as cloudy. Unlike the other algorithms, K nearest neighbors does not build up any kind of global model that gets applied to the data. Instead, it just uses the training data itself. As with the random forest classifier, we will use cross-validation to choose the 'best' number of neighbors:&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/KNN_CV.png"&gt;&lt;/p&gt;
+&lt;p&gt;The drop off towards large number of neighbors is the effect of increasing bias, which is the opposite of overfitting. It is equivalent to fitting a straight line through data when you should fit a quadratic function. The best number of nearest neighbors is about 5, which is actually surprisingly small.&lt;/p&gt;
+&lt;h2&gt;Finding the best estimator.&lt;/h2&gt;
+&lt;p&gt;We are finally in a position to estimate the cloud cover for the missing values. The figure below shows the cross-validation accuracy of each estimator.&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/Estimator_Accuracy.png" width="500"&gt;&lt;/p&gt;
+&lt;p&gt;The best estimator for this dataset is k-nearest neighbors, with the random forest close on its heels. The best we can do is about 92% accuracy, but that is good enough for my purposes. &lt;/p&gt;
+&lt;p&gt;All that is left now is to fill in the missing values in the cloud data with the k-nearest neighbors estimation.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="c"&gt;# Get the predicted cloudiness&lt;/span&gt;
+&lt;span class="n"&gt;X_df&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;[[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;base-TEMP_AVG&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;base-PRESS_AVG&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;DEWPT_calculated&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;Dust&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]]&lt;/span&gt;
+&lt;span class="n"&gt;X_norm&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;scale_fcn&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;transform&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;X_df&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;values&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="n"&gt;cloudiness_arr&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;clf&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;predict&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;X_norm&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;cloudiness&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;pd&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;Series&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;cloudiness_arr&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;index&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;X_df&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;index&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="c"&gt;# Fill in the missing values&lt;/span&gt;
+&lt;span class="n"&gt;idx&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;index&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;cloudiness&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;isnull&lt;/span&gt;&lt;span class="p"&gt;()]&lt;/span&gt;
+&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;loc&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;idx&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;cloudiness&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;cloudiness&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ix&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;idx&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h2&gt;Test my results!&lt;/h2&gt;
+&lt;p&gt;Are you at McDonald now? Try out my results. Ideally, I would like to have a web interface, but I'm pretty sure that would require a lot more work to make a dynamic website with django or something. In lieu of that, you can use this ipython notebook, along with a pickled version of the classifier and scaler!&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="Downloads/Predict_Clouds.ipynb"&gt;ipython notebook&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Pickled classifier (OS-dependent, I think. Right click and save as a file to download):&lt;ul&gt;
+&lt;li&gt;&lt;a href="Downloads/classifier_linux_x86_64.pkl"&gt;Linux x86_64&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="Downloads/classifier_mac_osx.pkl"&gt;Mac OSX&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;script type="text/javascript"&gt;if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width &lt; 768) ? "left" : align;
+        indent = (screen.width &lt; 768) ? "0em" : indent;
+        linebreak = (screen.width &lt; 768) ? 'true' : linebreak;
+    }
+    
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = '//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+    mathjaxscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'AMS' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); ";
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+&lt;/script&gt;</description><dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Kevin Gullikson</dc:creator><pubDate>Sun, 19 Apr 2015 23:00:00 -0500</pubDate><guid>tag:kgullikson88.github.io,2015-04-19:blog/classification.html</guid><category>Classification</category><category>Weather</category></item><item><title>First Post</title><link>http://kgullikson88.github.io/blog/first-post.html</link><description>&lt;h2&gt;Hello World!&lt;/h2&gt;
+&lt;p&gt;First post for my &lt;a href="http://kgullikson88.github.io/blog"&gt;blog&lt;/a&gt;. Let's do this!&lt;/p&gt;</description><dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Kevin Gullikson</dc:creator><pubDate>Sun, 08 Mar 2015 05:00:00 -0500</pubDate><guid>tag:kgullikson88.github.io,2015-03-08:blog/first-post.html</guid></item></channel></rss>
