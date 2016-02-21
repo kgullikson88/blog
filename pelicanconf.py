@@ -12,6 +12,7 @@ TIMEZONE = 'America/Chicago'
 
 DEFAULT_LANG = 'en'
 
+DISPLAY_PAGES_ON_MENU = True
 STATIC_PATHS = ['Images', 'Figures', 'Downloads', 'Javascript', 'static']
 PAGE_EXCLUDES = ['Javascript']
 ARTICLE_EXCLUDES = STATIC_PATHS
