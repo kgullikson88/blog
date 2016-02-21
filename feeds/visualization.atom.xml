@@ -30,7 +30,7 @@ command&lt;/p&gt;
 &lt;p&gt;gives a bunch of metadata for the given package, including everything it requires to run, but &lt;strong&gt;it only 
 works if you have the package installed!&lt;/strong&gt; I am not about to install every package on pypi on my or anyone 
 else's computer, so had to look for a more hacky way to do this. It turns out &lt;a href="https://ogirardot.wordpress.com/2013/01/05/state-of-the-pythonpypi-dependency-graph/"&gt;Olivier Girardot&lt;/a&gt; did a similar project 
-a few years back, so I took his code as a starting point. &lt;/p&gt;
+a few years back, so I took his code as a starting point. Update: it turns out &lt;a href="https://martin-thoma.com/analyzing-pypi-metadata-2/"&gt;Martin Thoma&lt;/a&gt; did a similar post as well that goes into lots of detail about all of the metadata available in the &lt;code&gt;setup.py&lt;/code&gt; files. &lt;/p&gt;
 &lt;p&gt;The first thing I did was download every package on pypi, and extract the &lt;code&gt;setup.py&lt;/code&gt; file and any file or directory with the word 'requirement' in it.&lt;/p&gt;
 &lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;extract_package&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;xmlrpclib&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ServerProxy&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;http://pypi.python.org/pypi&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)):&lt;/span&gt;
     &lt;span class="sd"&gt;&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;

@@ -99,7 +99,7 @@ command</p>
 <p>gives a bunch of metadata for the given package, including everything it requires to run, but <strong>it only 
 works if you have the package installed!</strong> I am not about to install every package on pypi on my or anyone 
 else's computer, so had to look for a more hacky way to do this. It turns out <a href="https://ogirardot.wordpress.com/2013/01/05/state-of-the-pythonpypi-dependency-graph/">Olivier Girardot</a> did a similar project 
-a few years back, so I took his code as a starting point. </p>
+a few years back, so I took his code as a starting point. Update: it turns out <a href="https://martin-thoma.com/analyzing-pypi-metadata-2/">Martin Thoma</a> did a similar post as well that goes into lots of detail about all of the metadata available in the <code>setup.py</code> files. </p>
 <p>The first thing I did was download every package on pypi, and extract the <code>setup.py</code> file and any file or directory with the word 'requirement' in it.</p>
 <div class="highlight"><pre><span class="k">def</span> <span class="nf">extract_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">client</span><span class="o">=</span><span class="n">xmlrpclib</span><span class="o">.</span><span class="n">ServerProxy</span><span class="p">(</span><span class="s">&#39;http://pypi.python.org/pypi&#39;</span><span class="p">)):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -297,7 +297,7 @@ between the nodes. The communities that we found are the set of large squares go
 
   <section>
   <h1>Tags</h1>
-    <a href="http://kgullikson88.github.io/blog/tag/political.html">Political</a>,    <a href="http://kgullikson88.github.io/blog/tag/web-scraping.html">web-scraping</a>,    <a href="http://kgullikson88.github.io/blog/tag/model-comparison.html">Model Comparison</a>,    <a href="http://kgullikson88.github.io/blog/tag/weather.html">Weather</a>,    <a href="http://kgullikson88.github.io/blog/tag/classification.html">Classification</a>,    <a href="http://kgullikson88.github.io/blog/tag/python.html">Python</a>,    <a href="http://kgullikson88.github.io/blog/tag/machine-learning.html">Machine Learning</a>,    <a href="http://kgullikson88.github.io/blog/tag/science.html">Science</a>,    <a href="http://kgullikson88.github.io/blog/tag/graphs.html">graphs</a>  </section>
+    <a href="http://kgullikson88.github.io/blog/tag/python.html">Python</a>,    <a href="http://kgullikson88.github.io/blog/tag/web-scraping.html">web-scraping</a>,    <a href="http://kgullikson88.github.io/blog/tag/machine-learning.html">Machine Learning</a>,    <a href="http://kgullikson88.github.io/blog/tag/weather.html">Weather</a>,    <a href="http://kgullikson88.github.io/blog/tag/classification.html">Classification</a>,    <a href="http://kgullikson88.github.io/blog/tag/model-comparison.html">Model Comparison</a>,    <a href="http://kgullikson88.github.io/blog/tag/graphs.html">graphs</a>,    <a href="http://kgullikson88.github.io/blog/tag/science.html">Science</a>,    <a href="http://kgullikson88.github.io/blog/tag/political.html">Political</a>  </section>
 
 
     <section>
