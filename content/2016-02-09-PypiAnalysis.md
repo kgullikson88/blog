@@ -44,7 +44,7 @@ gives a bunch of metadata for the given package, including everything it require
 works if you have the package installed!** I am not about to install every package on pypi on my or anyone 
 else's computer, so had to look for a more hacky way to do this. It turns out [Olivier Girardot](
 https://ogirardot.wordpress.com/2013/01/05/state-of-the-pythonpypi-dependency-graph/) did a similar project 
-a few years back, so I took his code as a starting point. 
+a few years back, so I took his code as a starting point. Update: it turns out [Martin Thoma](https://martin-thoma.com/analyzing-pypi-metadata-2/) did a similar post as well that goes into lots of detail about all of the metadata available in the `setup.py` files. 
 
 The first thing I did was download every package on pypi, and extract the `setup.py` file and any file or directory with the word 'requirement' in it.
 
