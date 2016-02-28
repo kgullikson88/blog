@@ -6,7 +6,7 @@ Tags: web-design, hackday
 Slug: va-hackday
 Author: Kevin Gullikson
 
-This weekend, I took part in the [VA BrainTrust Hack Day](http://www.blogs.va.gov/VAntage/25909/va-hosting-simultaneous-hackathons-in-san-francisco-austin/), a 2-day event where teams in Austin and San Francisco worked with mentors and veterans to try to solve three big problems facing veterans with mild traumatic brain injury (mTBI) and post-traumatic stress disorder (PTSD):
+Last weekend, I took part in the [VA BrainTrust Hack Day](http://www.blogs.va.gov/VAntage/25909/va-hosting-simultaneous-hackathons-in-san-francisco-austin/), a 2-day event where teams in Austin and San Francisco worked with mentors and veterans to try to solve three big problems facing veterans with mild traumatic brain injury (mTBI) and post-traumatic stress disorder (PTSD):
 
 1. Improve access to care for Veterans faced with mTBI + PTSD
 2. Identify opportunities for improved diagnostics.
