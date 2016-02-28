@@ -4,7 +4,7 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>Tags &mdash; Adventures of the Datastronomer</title>
+  <title>VA BrainTrust Hack Day &mdash; Adventures of the Datastronomer</title>
   <meta name="author" content="Kevin Gullikson">
 
   <link href="http://kgullikson88.github.io/blog/feeds/all.atom.xml" type="application/atom+xml" rel="alternate"
@@ -45,7 +45,7 @@
     <li >
     <a href="http://kgullikson88.github.io/blog/category/bayesian-methods.html">Bayesian methods</a>
     </li>
-    <li >
+    <li class="active">
     <a href="http://kgullikson88.github.io/blog/category/hacking.html">Hacking</a>
     </li>
     <li >
@@ -64,25 +64,96 @@
   <div id="main">
     <div id="content">
 <div>
-	<article role="article">
-    	<header>
-    		<h1 class="entry-title">Blog Tags</h1>
-    	</header>
+  <article class="hentry" role="article">
+<header>
+      <h1 class="entry-title">VA BrainTrust Hack Day</h1>
+    <p class="meta">
+<time datetime="2016-02-21T05:00:00-06:00" pubdate>Sun 21 February 2016</time>    </p>
+</header>
 
-	<p>
-		<a href="http://kgullikson88.github.io/blog/tag/classification.html">Classification</a> (1)<br>
-		<a href="http://kgullikson88.github.io/blog/tag/graphs.html">graphs</a> (1)<br>
-		<a href="http://kgullikson88.github.io/blog/tag/hackday.html">hackday</a> (1)<br>
-		<a href="http://kgullikson88.github.io/blog/tag/machine-learning.html">Machine Learning</a> (1)<br>
-		<a href="http://kgullikson88.github.io/blog/tag/model-comparison.html">Model Comparison</a> (1)<br>
-		<a href="http://kgullikson88.github.io/blog/tag/political.html">Political</a> (1)<br>
-		<a href="http://kgullikson88.github.io/blog/tag/python.html">Python</a> (1)<br>
-		<a href="http://kgullikson88.github.io/blog/tag/science.html">Science</a> (1)<br>
-		<a href="http://kgullikson88.github.io/blog/tag/weather.html">Weather</a> (1)<br>
-		<a href="http://kgullikson88.github.io/blog/tag/web-design.html">web-design</a> (1)<br>
-		<a href="http://kgullikson88.github.io/blog/tag/web-scraping.html">web-scraping</a> (2)<br>
-	</p>
-	</article>
+  <div class="entry-content"><p>This weekend, I took part in the <a href="http://www.blogs.va.gov/VAntage/25909/va-hosting-simultaneous-hackathons-in-san-francisco-austin/">VA BrainTrust Hack Day</a>, a 2-day event where teams in Austin and San Francisco worked with mentors and veterans to try to solve three big problems facing veterans with mild traumatic brain injury (mTBI) and post-traumatic stress disorder (PTSD):</p>
+<ol>
+<li>Improve access to care for Veterans faced with mTBI + PTSD</li>
+<li>Identify opportunities for improved diagnostics.</li>
+<li>Develop improved experiences for rehabilitation and community reintegration.</li>
+</ol>
+<h1>My Group</h1>
+<p>The group I was in, naturally team name "Awesomesauce", consisted of two python programmers (me and James Meiding), one high school senior html guru (Zach Col) and his mother (Eusebia Ulloa), 3 veterans (Keeshaun Coffey and Mike Rials from the <a href="http://www.brainhealth.utdallas.edu/">Center for Brain Health</a>, and <a href="www.linkedin.com/in/christinaangeline">Christina Angeline</a>), and a local entrepeneur (William Negley). </p>
+<p>The veterans in our group pointed out that much of the imagery surrounding PTSD is very negative - just try google image searching PTSD! We therefore wanted to make sure that our product focused on positive imagery and used positive reinforcement techniques to help veterans reintegrate into civilian society. We built a website called Veterans Impacting Every Day (Veterans I.E.D.) that does two main things:</p>
+<ol>
+<li>Provide a community where Veterans can post videos or essays describing their process of reintegration, and what worked for them. These do not need to be people who suffered from mTBI or PTSD, but certainly can be! </li>
+<li>Provide a positive feedback mechanism to help veterans reintegrate into society. We use a series of badges that veterans can earn for things like "Earn a job" and "Go to College". Each badge consists of a series of small, bite-sized subtasks that the veteran can complete. Each badge and subtask completed shows up on the veteran's user profile page.</li>
+</ol>
+<p>We implemented the website with the <code>django</code> python framework. This framework allows you to define a series of classes that describe things that will eventually go in a database which the user interactions update. The classes we have are</p>
+<ul>
+<li>User: We extended the base User class in <code>django</code> to include what tasks and badges they have finished, and what testimonials they have made.</li>
+<li>Badge: This class includes the name of the badge, its broad category, and the subtasks that it includes. </li>
+<li>Task: This class describes what to do to complete the subtask.</li>
+<li>Testimonial: This class is mostly just a youtube link.</li>
+</ul>
+<p>Here is what the end product looks like:</p>
+<p><img src="Images/VA-hackathon-website1.png" style="inline">
+<img src="Images/VA-hackathon-website2.png" style="inline"></p>
+<h1>Other Groups in Austin</h1>
+<ul>
+<li>
+<p><strong>Home</strong>: A marketplace to find:</p>
+<ul>
+<li>local healthcare providers for vets</li>
+<li>hobby/interest groups</li>
+<li>Safe places in the city (churches, community centers, etc. Designated by the user from a list)
+Home also integrates with facebook and twitter.</li>
+</ul>
+</li>
+<li>
+<p><strong>Your6</strong>: A web platform to connect veterans, who can stay anonymous. It has a bulletin board to post jobs, articles, etc, and a chat for real-time interaction. </p>
+</li>
+<li>
+<p><strong>Empower VR</strong> had two pitches:</p>
+<ol>
+<li>Virtual Reality scene to look at while having problems related to PTSD/mTBI. Idea is to help them calm down.</li>
+<li>Exposure therapy. Virtual reality scenes of things like going to down a narrow hallway in a school. These things cause stress to some people who suffer from PTSD, so it creates a safe way to experience their triggers and get used to them.</li>
+</ol>
+</li>
+<li>
+<p><strong>Olympic Convoy</strong>: Taking a bunch of vets to the Olympics (by car). </p>
+</li>
+<li>
+<p><strong>Cloud9</strong>: Made an app that veterans can use to fill out forms and interact with healthcare agencies. Mood tracker, pulls biometric data from wearables.</p>
+</li>
+<li>
+<p><strong>Gray Matter</strong>: Sleep disturbance is a common problem with TBI/PTSD, and insomnia leads to increased PTSD symptoms. Their solution was a smart mouthguard to wear at night that prevents tongue biting during seizures and collects/visualizes sleep data. </p>
+</li>
+<li>
+<p><strong>I am</strong>: Need to keep people in treatment (~60% drop out). Created a treatment retention score based on their symptoms and missed appointments (similar to credit score). Clinicians can use to evaluate patients and find troubled people. </p>
+</li>
+<li>
+<p><strong>One of 100</strong>: Developed an app that learns your activity habits (physical and mental and social activity). </p>
+</li>
+</ul>
+<h1>Who won?</h1>
+<ul>
+<li>3rd Place: AwesomeSauce (us!)</li>
+<li>2nd Place: Gray Matter</li>
+<li>1st Place: Home</li>
+</ul>
+<p>This was a great experience; I learned a lot about veterans issues and the django framework and got to interact with a lot of talented and motivated people. I will not be involved in the project anymore, but it is being carried on mostly by Mike and Keeshaun. I hope it leads to real improvement in veteran reintegration!</p></div>
+    <footer>
+<p class="meta">
+  <span class="byline author vcard">
+    Posted by <span class="fn">
+        Kevin Gullikson
+    </span>
+  </span>
+<time datetime="2016-02-21T05:00:00-06:00" pubdate>Sun 21 February 2016</time>  <span class="categories">
+    <a class='category' href='http://kgullikson88.github.io/blog/category/hacking.html'>Hacking</a>
+  </span>
+  <span class="categories">
+    <a class="category" href="http://kgullikson88.github.io/blog/tag/web-design.html">web-design</a>,    <a class="category" href="http://kgullikson88.github.io/blog/tag/hackday.html">hackday</a>  </span>
+</p><div class="sharing">
+</div>    </footer>
+  </article>
+
 </div>
 <aside class="sidebar">
   <section>
