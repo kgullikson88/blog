@@ -1,5 +1,5 @@
 Title: Should I buy phone insurance?
-date: 2016-10-21 05:00
+date: 2016-04-09 05:00
 comments: true
 Category: Hacking
 Tags: probability
@@ -72,7 +72,7 @@ $$ P(p|n, k) = \frac{n!}{k!(n-k)!} p^k (1-p)^{n-k} $$
 
 In our case, $p$ is the probability of losing your phone *in any given month*, n
 is still the number of months, and $k=1$ is the number of times you break/lose your phone
-(you only need to do it once to need new one).
+(you only need to do it once to need a new one).
 
 $$ P(p|n, k=1) = np(1-p)^{n-1} $$
 
