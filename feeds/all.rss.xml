@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0"><channel><title>Adventures of the Datastronomer</title><link>http://kgullikson88.github.io/blog/</link><description></description><lastBuildDate>Thu, 01 Dec 2016 05:00:00 -0600</lastBuildDate><item><title>2017 Solar Eclipse</title><link>http://kgullikson88.github.io/blog/eclipse.html</link><description>&lt;p&gt;As (probably most) of you know, there will be a &lt;a href="http://www.eclipse2017.org/2017/path_through_the_US.htm"&gt;total solar eclipse&lt;/a&gt; on 21 August, 2017. This will be the first such eclipse in the United States since 1979, and will be the last until 2024. If you are anything like me, you are now thinking "where do I watch this thing?". There are several maps of the path out there, and I'll get to that, but there is a different question that this post will try to answer: "where is the &lt;em&gt;best&lt;/em&gt; place to watch this thing?" By best, I mean where the view is least likely to be obscured by clouds. &lt;/p&gt;
+<rss version="2.0"><channel><title>Adventures of the Datastronomer</title><link>http://kgullikson88.github.io/blog/</link><description></description><lastBuildDate>Sun, 08 Jan 2017 03:00:00 -0600</lastBuildDate><item><title>2017 Solar Eclipse</title><link>http://kgullikson88.github.io/blog/eclipse.html</link><description>&lt;p&gt;As (probably most) of you know, there will be a &lt;a href="http://www.eclipse2017.org/2017/path_through_the_US.htm"&gt;total solar eclipse&lt;/a&gt; on 21 August, 2017. This will be the first such eclipse in the United States since 1979, and will be the last until 2024. If you are anything like me, you are now thinking "where do I watch this thing?". There are several maps of the path out there, and I'll get to that, but there is a different question that this post will try to answer: "where is the &lt;em&gt;best&lt;/em&gt; place to watch this thing?" By best, I mean where the view is least likely to be obscured by clouds. &lt;/p&gt;
 &lt;h2&gt;The data&lt;/h2&gt;
 &lt;p&gt;The data I used for this project is historical cloud cover come from the &lt;a href="https://ready.arl.noaa.gov/gdas1.php"&gt;Global Data Assimilation System (GDAS) archive&lt;/a&gt;, which comes in the form of the cloud cover percentage every three hours in a grid of latitudes and longitudes. I pulled all of the U.S. data within one week of 21 August for every year from 1979 to 2010, all of the available years. I then compiled all of the data from 18:00:00 UTC, the closest time grid to the time of the eclipse, at each grid point. &lt;/p&gt;
 &lt;p&gt;I initially thought I would plot the average cloud cover at each grid point, and the one with the lowest average that falls within the eclipse path is the "best" location. Of course, that approach involves the assumption that the average is a good descriptor of the historical cloud cover distribution. Put another way, it assumes the cloud cover over a given grid point follows a roughly Gaussian distribution, or at least a symmetric and singly-peaked one. As you can see in the plot below, it is not:&lt;/p&gt;
 &lt;p&gt;&lt;img src="Figures/cloud_cover.png"&gt;&lt;/p&gt;
 &lt;p&gt;The cloud cover distribution tends to peak at 0 (clear skies) and 100 (overcast). There are therefore two statistics I will plot to decide where clouds are least likely to hinder your eclipse viewing experience.&lt;/p&gt;
 &lt;ol&gt;
-&lt;li&gt;"How likely is it to be completely clear?", or the fraction of historical data with cloud cover under 25%.
-    &amp;lt; img src="Figures/clear_dist.png"&amp;gt;&lt;/li&gt;
-&lt;li&gt;"How likely is it to be overcast", or the fraction of historical data with cloud cover over 75%. 
-    &amp;lt; img src="Figures/cloudy_dist.png"&amp;gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;"How likely is it to be completely clear?", or the fraction of historical data with cloud cover under 25%.&lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/clear_dist.png"&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;"How likely is it to be overcast", or the fraction of historical data with cloud cover over 75%. &lt;/p&gt;
+&lt;p&gt;&lt;img src="Figures/overcast_dist.png"&gt;&lt;/p&gt;
+&lt;/li&gt;
 &lt;/ol&gt;
 &lt;p&gt;Both of the plots above are distributions across all grid points, and &lt;em&gt;do&lt;/em&gt; follow a roughly Gaussian distribution. So I'll plot those.&lt;/p&gt;
 &lt;h2&gt;So, where should I watch the eclipse?&lt;/h2&gt;
@@ -89,7 +93,7 @@
         "}); ";
     (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
 }
-&lt;/script&gt;</description><dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Kevin Gullikson</dc:creator><pubDate>Thu, 01 Dec 2016 05:00:00 -0600</pubDate><guid isPermaLink="false">tag:kgullikson88.github.io,2016-12-01:blog/eclipse.html</guid><category>probability</category></item><item><title>Should I buy phone insurance?</title><link>http://kgullikson88.github.io/blog/phone-insurance.html</link><description>&lt;p&gt;Ah, the question everybody guesses at: is phone insurance worth it? As Mark Watney would say:&lt;/p&gt;
+&lt;/script&gt;</description><dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Kevin Gullikson</dc:creator><pubDate>Sun, 08 Jan 2017 03:00:00 -0600</pubDate><guid isPermaLink="false">tag:kgullikson88.github.io,2017-01-08:blog/eclipse.html</guid><category>probability</category></item><item><title>Should I buy phone insurance?</title><link>http://kgullikson88.github.io/blog/phone-insurance.html</link><description>&lt;p&gt;Ah, the question everybody guesses at: is phone insurance worth it? As Mark Watney would say:&lt;/p&gt;
 &lt;p&gt;&lt;img src="https://tysonadams.files.wordpress.com/2015/08/science-the-shit-out-of-this.jpg"&gt;&lt;/p&gt;
 &lt;p&gt;Phone insurance generally comes with a monthly premium and a deductable, which we will call &lt;span class="math"&gt;\(r\)&lt;/span&gt; and &lt;span class="math"&gt;\(D\)&lt;/span&gt;, respectively. If I buy insurance, the &lt;em&gt;expected cost&lt;/em&gt; to me is then:&lt;/p&gt;
 &lt;div class="math"&gt;$$ E(\mathrm{cost\ with\ insurance}) = rn + pD $$&lt;/div&gt;
